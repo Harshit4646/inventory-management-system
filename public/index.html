@@ -213,29 +213,33 @@
 </main>
 
 <script>
-  const API_BASE = 'api/server?route='; // change when deployed
+const API_BASE = '/api/server?route='; // Corrected for Vercel
 
-  // Nav handling
-  document.querySelectorAll('nav a').forEach(a => {
-    a.addEventListener('click', e => {
-      e.preventDefault();
-      const sectionId = a.dataset.section;
-      document.querySelectorAll('nav a').forEach(x => x.classList.remove('active'));
-      a.classList.add('active');
-      document.querySelectorAll('main section').forEach(sec => sec.classList.remove('active'));
-      document.getElementById(sectionId).classList.add('active');
-      if (sectionId === 'dashboard') loadDashboard();
-      if (sectionId === 'stock') loadStock();
-      if (sectionId === 'expired') loadExpired();
-      if (sectionId === 'sales') loadSaleProducts();
-      if (sectionId === 'bills') loadBills();
-      if (sectionId === 'borrowers') loadBorrowers();
-    });
+// --- Navigation handling ---
+document.querySelectorAll('nav a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const sectionId = a.dataset.section;
+    document.querySelectorAll('nav a').forEach(x => x.classList.remove('active'));
+    a.classList.add('active');
+    document.querySelectorAll('main section').forEach(sec => sec.classList.remove('active'));
+    document.getElementById(sectionId).classList.add('active');
+
+    // Load corresponding data
+    if (sectionId === 'dashboard') loadDashboard();
+    if (sectionId === 'stock') loadStock();
+    if (sectionId === 'expired') loadExpired();
+    if (sectionId === 'sales') loadSaleProducts();
+    if (sectionId === 'bills') loadBills();
+    if (sectionId === 'borrowers') loadBorrowers();
   });
+});
 
-  // Dashboard
-  async function loadDashboard() {
+// --- Dashboard ---
+async function loadDashboard() {
+  try {
     const res = await fetch(API_BASE + 'dashboard');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     document.getElementById('dash-daily-total').textContent = Number(data.daily_total).toFixed(2);
     document.getElementById('dash-monthly-total').textContent = Number(data.monthly_total).toFixed(2);
@@ -243,11 +247,17 @@
     document.getElementById('dash-daily-online').textContent = Number(data.daily_online).toFixed(2);
     document.getElementById('dash-daily-borrow').textContent = Number(data.daily_borrow).toFixed(2);
     document.getElementById('dash-borrower-payments').textContent = Number(data.borrower_payments).toFixed(2);
+  } catch (err) {
+    console.error("Dashboard load error:", err);
+    alert("Failed to load dashboard. Check console for details.");
   }
+}
 
-  // Stock
-  async function loadStock() {
+// --- Stock ---
+async function loadStock() {
+  try {
     const res = await fetch(API_BASE + 'stock');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const tbody = document.getElementById('stock-table-body');
     tbody.innerHTML = '';
@@ -265,19 +275,24 @@
       `;
       tbody.appendChild(tr);
     });
+  } catch (err) {
+    console.error("Stock load error:", err);
+    alert("Failed to load stock. Check console.");
   }
+}
 
-  document.getElementById('stock-add-btn').addEventListener('click', async () => {
-    const name = document.getElementById('stock-name').value.trim();
-    const price = parseFloat(document.getElementById('stock-price').value);
-    const expiry = document.getElementById('stock-expiry').value;
-    const qty = parseInt(document.getElementById('stock-qty').value);
-    const msgEl = document.getElementById('stock-msg');
-    msgEl.textContent = '';
-    if (!name || !price || !expiry || !qty) {
-      msgEl.textContent = 'Fill all fields correctly.';
-      return;
-    }
+document.getElementById('stock-add-btn').addEventListener('click', async () => {
+  const name = document.getElementById('stock-name').value.trim();
+  const price = parseFloat(document.getElementById('stock-price').value);
+  const expiry = document.getElementById('stock-expiry').value;
+  const qty = parseInt(document.getElementById('stock-qty').value);
+  const msgEl = document.getElementById('stock-msg');
+  msgEl.textContent = '';
+  if (!name || !price || !expiry || !qty) {
+    msgEl.textContent = 'Fill all fields correctly.';
+    return;
+  }
+  try {
     const res = await fetch(API_BASE + 'stock', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -294,11 +309,17 @@
     } else {
       msgEl.textContent = data.error || 'Error saving stock.';
     }
-  });
+  } catch (err) {
+    console.error("Stock save error:", err);
+    msgEl.textContent = 'Error saving stock.';
+  }
+});
 
-  // Expired
-  async function loadExpired() {
+// --- Expired stock ---
+async function loadExpired() {
+  try {
     const res = await fetch(API_BASE + 'expired');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const tbody = document.getElementById('expired-table-body');
     tbody.innerHTML = '';
@@ -314,135 +335,128 @@
       `;
       tbody.appendChild(tr);
     });
+  } catch (err) {
+    console.error("Expired stock load error:", err);
+    alert("Failed to load expired stock.");
   }
+}
 
-  // Sales
-  let saleProducts = [];
-  function recalcTotals() {
-    let total = 0;
-    document.querySelectorAll('#sale-items-body tr').forEach(tr => {
-      const price = parseFloat(tr.querySelector('.sale-price').textContent);
-      const qty = parseInt(tr.querySelector('.sale-qty').value) || 0;
-      const lineTotal = price * qty;
-      tr.querySelector('.sale-line-total').textContent = lineTotal.toFixed(2);
-      total += lineTotal;
-    });
-    document.getElementById('sale-total').textContent = total.toFixed(2);
-    const paid = parseFloat(document.getElementById('sale-paid').value) || 0;
-    let remaining = total - paid;
-    if (remaining < 0) {
-      document.getElementById('sale-paid').value = total.toFixed(2);
-      remaining = 0;
-    }
-    document.getElementById('sale-remaining').textContent = remaining.toFixed(2);
-  }
+// --- Sale products and sales ---
+let saleProducts = [];
 
-  async function loadSaleProducts() {
+async function loadSaleProducts() {
+  try {
     const res = await fetch(API_BASE + 'sale-products');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     saleProducts = await res.json();
-    const tbody = document.getElementById('sale-items-body');
-    tbody.innerHTML = '';
+    document.getElementById('sale-items-body').innerHTML = '';
     recalcTotals();
+  } catch (err) {
+    console.error("Load sale products error:", err);
+    alert("Failed to load sale products.");
   }
+}
 
-  document.getElementById('sale-add-item').addEventListener('click', () => {
-    const tbody = document.getElementById('sale-items-body');
-    const tr = document.createElement('tr');
-    const options = saleProducts.map(p =>
-      `<option value="${p.id}">${p.name} | ₹${Number(p.price).toFixed(2)} | Exp: ${p.expiry_date} | Stock: ${p.quantity}</option>`
-    ).join('');
-    tr.innerHTML = `
-      <td>
-        <select class="sale-product">
-          <option value="">Select...</option>
-          ${options}
-        </select>
-      </td>
-      <td class="sale-price">0</td>
-      <td class="sale-expiry"></td>
-      <td><input class="sale-qty" type="number" min="1" value="1"></td>
-      <td class="sale-line-total">0</td>
-      <td><button class="sale-remove">X</button></td>
-    `;
-    tbody.appendChild(tr);
-
-    const sel = tr.querySelector('.sale-product');
-    const qtyInput = tr.querySelector('.sale-qty');
-
-    sel.addEventListener('change', () => {
-      const id = parseInt(sel.value);
-      const product = saleProducts.find(p => p.id === id);
-      if (product) {
-        tr.querySelector('.sale-price').textContent = Number(product.price).toFixed(2);
-        tr.querySelector('.sale-expiry').textContent = product.expiry_date;
-        if (parseInt(qtyInput.value) > product.quantity) {
-          qtyInput.value = product.quantity;
-        }
-      } else {
-        tr.querySelector('.sale-price').textContent = '0';
-        tr.querySelector('.sale-expiry').textContent = '';
-      }
-      recalcTotals();
-    });
-
-    qtyInput.addEventListener('input', () => {
-      const id = parseInt(sel.value);
-      const product = saleProducts.find(p => p.id === id);
-      let qty = parseInt(qtyInput.value) || 0;
-      if (product && qty > product.quantity) {
-        qty = product.quantity;
-        qtyInput.value = qty;
-      }
-      if (qty < 1) qtyInput.value = 1;
-      recalcTotals();
-    });
-
-    tr.querySelector('.sale-remove').addEventListener('click', () => {
-      tr.remove();
-      recalcTotals();
-    });
+function recalcTotals() {
+  let total = 0;
+  document.querySelectorAll('#sale-items-body tr').forEach(tr => {
+    const price = parseFloat(tr.querySelector('.sale-price').textContent) || 0;
+    const qty = parseInt(tr.querySelector('.sale-qty').value) || 0;
+    const lineTotal = price * qty;
+    tr.querySelector('.sale-line-total').textContent = lineTotal.toFixed(2);
+    total += lineTotal;
   });
+  document.getElementById('sale-total').textContent = total.toFixed(2);
+  const paid = parseFloat(document.getElementById('sale-paid').value) || 0;
+  let remaining = total - paid;
+  if (remaining < 0) {
+    document.getElementById('sale-paid').value = total.toFixed(2);
+    remaining = 0;
+  }
+  document.getElementById('sale-remaining').textContent = remaining.toFixed(2);
+}
 
-  document.getElementById('sale-paid').addEventListener('input', () => {
+document.getElementById('sale-add-item').addEventListener('click', () => {
+  const tbody = document.getElementById('sale-items-body');
+  const tr = document.createElement('tr');
+  const options = saleProducts.map(p =>
+    `<option value="${p.id}">${p.name} | ₹${Number(p.price).toFixed(2)} | Exp: ${p.expiry_date} | Stock: ${p.quantity}</option>`
+  ).join('');
+  tr.innerHTML = `
+    <td>
+      <select class="sale-product">
+        <option value="">Select...</option>
+        ${options}
+      </select>
+    </td>
+    <td class="sale-price">0</td>
+    <td class="sale-expiry"></td>
+    <td><input class="sale-qty" type="number" min="1" value="1"></td>
+    <td class="sale-line-total">0</td>
+    <td><button class="sale-remove">X</button></td>
+  `;
+  tbody.appendChild(tr);
+
+  const sel = tr.querySelector('.sale-product');
+  const qtyInput = tr.querySelector('.sale-qty');
+
+  sel.addEventListener('change', () => {
+    const id = parseInt(sel.value);
+    const product = saleProducts.find(p => p.id === id);
+    if (product) {
+      tr.querySelector('.sale-price').textContent = Number(product.price).toFixed(2);
+      tr.querySelector('.sale-expiry').textContent = product.expiry_date;
+      if (parseInt(qtyInput.value) > product.quantity) qtyInput.value = product.quantity;
+    } else {
+      tr.querySelector('.sale-price').textContent = '0';
+      tr.querySelector('.sale-expiry').textContent = '';
+    }
     recalcTotals();
   });
 
-  document.getElementById('sale-save').addEventListener('click', async () => {
-    const msgEl = document.getElementById('sale-msg');
-    msgEl.textContent = '';
-    const customer = document.getElementById('sale-customer').value.trim();
-    const paymentType = document.getElementById('sale-payment-type').value;
-    const total = parseFloat(document.getElementById('sale-total').textContent) || 0;
-    let paid = parseFloat(document.getElementById('sale-paid').value) || 0;
+  qtyInput.addEventListener('input', () => {
+    const id = parseInt(sel.value);
+    const product = saleProducts.find(p => p.id === id);
+    let qty = parseInt(qtyInput.value) || 0;
+    if (product && qty > product.quantity) qty = product.quantity;
+    if (qty < 1) qty = 1;
+    qtyInput.value = qty;
+    recalcTotals();
+  });
 
-    if (total <= 0) {
-      msgEl.textContent = 'Add at least one item.';
-      return;
-    }
-    if (paid > total) {
-      paid = total;
-      document.getElementById('sale-paid').value = total.toFixed(2);
-    }
-    if (paymentType === 'BORROW' && !customer) {
-      msgEl.textContent = 'Customer name required for borrow.';
-      return;
-    }
+  tr.querySelector('.sale-remove').addEventListener('click', () => {
+    tr.remove();
+    recalcTotals();
+  });
+});
 
-    const items = [];
-    let valid = true;
-    document.querySelectorAll('#sale-items-body tr').forEach(tr => {
-      const sel = tr.querySelector('.sale-product');
-      const productId = parseInt(sel.value);
-      const price = parseFloat(tr.querySelector('.sale-price').textContent) || 0;
-      const qty = parseInt(tr.querySelector('.sale-qty').value) || 0;
-      if (!productId || price <= 0 || qty <= 0) valid = false;
-      items.push({ product_id: productId, price, quantity: qty });
-    });
-    if (!valid || items.length === 0) {
-      msgEl.textContent = 'Invalid items.';
-      return;
-    }
+document.getElementById('sale-paid').addEventListener('input', recalcTotals);
 
+document.getElementById('sale-save').addEventListener('click', async () => {
+  const msgEl = document.getElementById('sale-msg');
+  msgEl.textContent = '';
+  const customer = document.getElementById('sale-customer').value.trim();
+  const paymentType = document.getElementById('sale-payment-type').value;
+  const total = parseFloat(document.getElementById('sale-total').textContent) || 0;
+  let paid = parseFloat(document.getElementById('sale-paid').value) || 0;
+
+  if (total <= 0) { msgEl.textContent = 'Add at least one item.'; return; }
+  if (paid > total) { paid = total; document.getElementById('sale-paid').value = total.toFixed(2); }
+  if (paymentType === 'BORROW' && !customer) { msgEl.textContent = 'Customer name required for borrow.'; return; }
+
+  const items = [];
+  let valid = true;
+  document.querySelectorAll('#sale-items-body tr').forEach(tr => {
+    const sel = tr.querySelector('.sale-product');
+    const productId = parseInt(sel.value);
+    const price = parseFloat(tr.querySelector('.sale-price').textContent) || 0;
+    const qty = parseInt(tr.querySelector('.sale-qty').value) || 0;
+    if (!productId || price <= 0 || qty <= 0) valid = false;
+    items.push({ product_id: productId, price, quantity: qty });
+  });
+  if (!valid || items.length === 0) { msgEl.textContent = 'Invalid items.'; return; }
+
+  try {
     const res = await fetch(API_BASE + 'sales', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -466,11 +480,17 @@
     } else {
       msgEl.textContent = data.error || 'Error saving sale.';
     }
-  });
+  } catch (err) {
+    console.error("Save sale error:", err);
+    msgEl.textContent = 'Error saving sale.';
+  }
+});
 
-  // Bills
-  async function loadBills() {
+// --- Sales bills ---
+async function loadBills() {
+  try {
     const res = await fetch(API_BASE + 'sales');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const tbody = document.getElementById('bills-table-body');
     tbody.innerHTML = '';
@@ -486,11 +506,17 @@
       `;
       tbody.appendChild(tr);
     });
+  } catch (err) {
+    console.error("Load bills error:", err);
+    alert("Failed to load sales bills.");
   }
+}
 
-  // Borrowers
-  async function loadBorrowers() {
+// --- Borrowers ---
+async function loadBorrowers() {
+  try {
     const res = await fetch(API_BASE + 'borrowers');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const tbody = document.getElementById('borrowers-table-body');
     tbody.innerHTML = '';
@@ -508,33 +534,43 @@
       const amtInput = tr.querySelector('.borrow-pay-amount');
       btn.addEventListener('click', async () => {
         const amt = parseFloat(amtInput.value) || 0;
-        if (amt <= 0 || amt > row.outstanding_amount) {
-          alert('Invalid amount.');
-          return;
-        }
-        const res2 = await fetch(API_BASE + 'borrower-payments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ borrower_id: row.id, amount: amt })
-        });
-        const data2 = await res2.json();
-        if (res2.ok) {
+        if (amt <= 0 || amt > row.outstanding_amount) { alert('Invalid amount.'); return; }
+        try {
+          const res2 = await fetch(API_BASE + 'borrower-payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ borrower_id: row.id, amount: amt })
+          });
+          if (!res2.ok) throw new Error(`HTTP ${res2.status}`);
+          const data2 = await res2.json();
           alert('Payment saved.');
           loadBorrowers();
           loadDashboard();
-        } else {
-          alert(data2.error || 'Error saving payment.');
+        } catch (err) {
+          console.error("Borrower payment error:", err);
+          alert('Failed to save payment.');
         }
       });
       tbody.appendChild(tr);
     });
+  } catch (err) {
+    console.error("Load borrowers error:", err);
+    alert("Failed to load borrowers.");
   }
+}
 
-  // Initial load
-  loadDashboard();
+// --- Initial load ---
+loadDashboard();
+loadStock();
+loadSaleProducts();
+loadExpired();
+loadBills();
+loadBorrowers();
 </script>
+
 </body>
 </html>
+
 
 
 
