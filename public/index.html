@@ -282,7 +282,7 @@ document.getElementById('stock-add-btn').addEventListener('click', async ()=>{
   const msgEl=document.getElementById('stock-msg'); msgEl.textContent='';
   if(!name||!price||!expiry||!qty){msgEl.textContent='Fill all fields';return;}
   try{
-    const res=await fetch(`${API_BASE}/stock`,{
+    const res=await fetch(API_BASE+'stock`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({name,price,expiry_date:expiry,quantity:qty})
@@ -301,7 +301,7 @@ document.getElementById('stock-add-btn').addEventListener('click', async ()=>{
 // --- Expired ---
 async function loadExpired(){
   try{
-    const res=await fetch(`${API_BASE}/expired`);
+    const res=await fetch(API_BASE+'expired`);
     const data=await res.json();
     const tbody=document.getElementById('expired-table-body'); tbody.innerHTML='';
     data.forEach(row=>{
@@ -320,7 +320,7 @@ async function loadExpired(){
 let saleProducts=[];
 async function loadSaleProducts(){
   try{
-    const res=await fetch(`${API_BASE}/sale-products`);
+    const res=await fetch(API_BASE+'sale-products`);
     saleProducts=await res.json();
     document.getElementById('sale-items-body').innerHTML='';
     recalcTotals();
@@ -406,7 +406,7 @@ document.getElementById('sale-save').addEventListener('click', async ()=>{
   if(!valid||items.length===0){msgEl.textContent='Invalid items';return;}
 
   try{
-    const res=await fetch(`${API_BASE}/sales`,{
+    const res=await fetch(API_BASE+'sales`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({customer_name:customer||null,payment_type:paymentType,total_amount:total,paid_amount:paid,items})
@@ -420,7 +420,7 @@ document.getElementById('sale-save').addEventListener('click', async ()=>{
 // --- Bills ---
 async function loadBills(){
   try{
-    const res=await fetch(`${API_BASE}/sales`);
+    const res=await fetch(API_BASE+'sales`);
     const data=await res.json();
     const tbody=document.getElementById('bills-table-body'); tbody.innerHTML='';
     data.forEach(row=>{
@@ -434,7 +434,7 @@ async function loadBills(){
 // --- Borrowers ---
 async function loadBorrowers(){
   try{
-    const res=await fetch(`${API_BASE}/borrowers`);
+    const res=await fetch(API_BASE+'borrowers`);
     const data=await res.json();
     const tbody=document.getElementById('borrowers-table-body'); tbody.innerHTML='';
     data.forEach(row=>{
@@ -446,7 +446,7 @@ async function loadBorrowers(){
         const amt=parseFloat(amtInput.value)||0;
         if(amt<=0||amt>row.outstanding_amount){alert('Invalid amount');return;}
         try{
-          const res2=await fetch(`${API_BASE}/borrower-payments`,{
+          const res2=await fetch(API_BASE+'borrower-payments`,{
             method:'POST',
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({borrower_id:row.id,amount:amt})
@@ -466,4 +466,5 @@ loadDashboard(); loadStock(); loadSaleProducts(); loadExpired(); loadBills(); lo
 </script>
 </body>
 </html>
+
 
