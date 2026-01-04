@@ -208,118 +208,110 @@
 </main>
 
 <script>
-const API_BASE = '/api/server'; // Single endpoint on server.js
+const API_BASE = '/api/server';
 
-// Navigation
-document.querySelectorAll('nav a').forEach(a => {
-  a.addEventListener('click', e => {
+// --- NAVIGATION ---
+document.querySelectorAll('nav a').forEach(a=>{
+  a.addEventListener('click', e=>{
     e.preventDefault();
-    const sectionId = a.dataset.section;
-    document.querySelectorAll('nav a').forEach(x => x.classList.remove('active'));
+    const sec = a.dataset.section;
+    document.querySelectorAll('nav a').forEach(x=>x.classList.remove('active'));
     a.classList.add('active');
-    document.querySelectorAll('main section').forEach(sec => sec.classList.remove('active'));
-    document.getElementById(sectionId).classList.add('active');
+    document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
+    document.getElementById(sec).classList.add('active');
 
-    if(sectionId==='dashboard') loadDashboard();
-    if(sectionId==='stock') loadStock();
-    if(sectionId==='expired') loadExpired();
-    if(sectionId==='sales') loadSaleProducts();
-    if(sectionId==='bills') loadBills();
-    if(sectionId==='borrowers') loadBorrowers();
+    if(sec==='dashboard') loadDashboard();
+    if(sec==='stock') loadStock();
+    if(sec==='expired') loadExpired();
+    if(sec==='sales') loadSaleProducts();
+    if(sec==='bills') loadBills();
+    if(sec==='borrowers') loadBorrowers();
   });
 });
 
+// --- FETCH WRAPPER ---
+async function fetchJSON(url, options){
+  try{
+    const res = await fetch(url, options);
+    if(!res.ok){
+      const text = await res.text();
+      console.error(`HTTP ${res.status}: ${text}`);
+      return null;
+    }
+    return await res.json();
+  } catch(err){
+    console.error('Fetch error:', err);
+    return null;
+  }
+}
+
 // --- DASHBOARD ---
-async function loadDashboard() {
-  try {
-    const res = await fetch(`${API_BASE}?route=dashboard`);
-    const data = await res.json();
-    document.getElementById('dash-daily-total').textContent = Number(data.daily_total).toFixed(2);
-    document.getElementById('dash-monthly-total').textContent = Number(data.monthly_total).toFixed(2);
-    document.getElementById('dash-daily-cash').textContent = Number(data.daily_cash).toFixed(2);
-    document.getElementById('dash-daily-online').textContent = Number(data.daily_online).toFixed(2);
-    document.getElementById('dash-daily-borrow').textContent = Number(data.daily_borrow).toFixed(2);
-    document.getElementById('dash-borrower-payments').textContent = Number(data.borrower_payments).toFixed(2);
-  } catch(err){console.error('Dashboard error:',err);}
+async function loadDashboard(){
+  const data = await fetchJSON(`${API_BASE}?route=dashboard`);
+  if(!data) return;
+  document.getElementById('dash-daily-total').textContent=Number(data.daily_total).toFixed(2);
+  document.getElementById('dash-monthly-total').textContent=Number(data.monthly_total).toFixed(2);
+  document.getElementById('dash-daily-cash').textContent=Number(data.daily_cash).toFixed(2);
+  document.getElementById('dash-daily-online').textContent=Number(data.daily_online).toFixed(2);
+  document.getElementById('dash-daily-borrow').textContent=Number(data.daily_borrow).toFixed(2);
+  document.getElementById('dash-borrower-payments').textContent=Number(data.borrower_payments).toFixed(2);
 }
 
 // --- STOCK ---
-async function loadStock() {
-  try {
-    const res = await fetch(`${API_BASE}?route=stock`);
-    const data = await res.json();
-    const tbody = document.getElementById('stock-table-body');
-    tbody.innerHTML = '';
-    const today = new Date();
-    data.forEach(row => {
-      const tr = document.createElement('tr');
-      const expDate = new Date(row.expiry_date);
-      const diffDays = (expDate - today)/(1000*60*60*24);
-      if(diffDays<=7 && diffDays>=0) tr.classList.add('near-expiry');
-      tr.innerHTML = `<td>${row.name}</td>
-                      <td>${Number(row.price).toFixed(2)}</td>
-                      <td>${row.expiry_date}</td>
-                      <td>${row.quantity}</td>`;
-      tbody.appendChild(tr);
-    });
-  } catch(err){console.error(err);}
+async function loadStock(){
+  const data = await fetchJSON(`${API_BASE}?route=stock`);
+  if(!data) return;
+  const tbody = document.getElementById('stock-table-body');
+  tbody.innerHTML='';
+  const today = new Date();
+  data.forEach(row=>{
+    const tr=document.createElement('tr');
+    const exp = new Date(row.expiry_date);
+    if((exp-today)/(1000*60*60*24)<=7) tr.classList.add('near-expiry');
+    tr.innerHTML=`<td>${row.name}</td><td>${Number(row.price).toFixed(2)}</td><td>${row.expiry_date}</td><td>${row.quantity}</td>`;
+    tbody.appendChild(tr);
+  });
 }
 
-// Add stock
-document.getElementById('stock-add-btn').addEventListener('click', async () => {
-  const name = document.getElementById('stock-name').value.trim();
-  const price = parseFloat(document.getElementById('stock-price').value);
-  const expiry = document.getElementById('stock-expiry').value;
-  const qty = parseInt(document.getElementById('stock-qty').value);
-  const msgEl = document.getElementById('stock-msg'); msgEl.textContent='';
-  if(!name || !price || !expiry || !qty){msgEl.textContent='Fill all fields'; return;}
-  try{
-    const res = await fetch(`${API_BASE}?route=stock`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({name, price, expiry_date:expiry, quantity:qty})
-    });
-    const data = await res.json();
-    if(res.ok){
-      msgEl.textContent='Stock saved';
-      document.getElementById('stock-name').value='';
-      document.getElementById('stock-price').value='';
-      document.getElementById('stock-expiry').value='';
-      document.getElementById('stock-qty').value='';
-      loadStock();
-    } else msgEl.textContent = data.error || 'Error saving stock';
-  } catch(err){console.error(err); msgEl.textContent='Error saving stock';}
+document.getElementById('stock-add-btn').addEventListener('click', async ()=>{
+  const name=document.getElementById('stock-name').value.trim();
+  const price=parseFloat(document.getElementById('stock-price').value);
+  const expiry=document.getElementById('stock-expiry').value;
+  const qty=parseInt(document.getElementById('stock-qty').value);
+  const msgEl=document.getElementById('stock-msg'); msgEl.textContent='';
+  if(!name||!price||!expiry||!qty){msgEl.textContent='Fill all fields'; return;}
+  const data = await fetchJSON(`${API_BASE}?route=stock`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, price, expiry_date:expiry, quantity:qty})
+  });
+  if(data){msgEl.textContent='Stock saved'; document.getElementById('stock-name').value=''; document.getElementById('stock-price').value=''; document.getElementById('stock-expiry').value=''; document.getElementById('stock-qty').value=''; loadStock();}
+  else msgEl.textContent='Error saving stock';
 });
 
 // --- EXPIRED ---
 async function loadExpired(){
-  try{
-    const res = await fetch(`${API_BASE}?route=expired`);
-    const data = await res.json();
-    const tbody = document.getElementById('expired-table-body'); tbody.innerHTML='';
-    data.forEach(row=>{
-      const tr = document.createElement('tr'); tr.classList.add('expired');
-      tr.innerHTML = `<td>${row.name}</td>
-                      <td>${Number(row.price).toFixed(2)}</td>
-                      <td>${row.expiry_date}</td>
-                      <td>${row.expired_date}</td>
-                      <td>${row.quantity}</td>`;
-      tbody.appendChild(tr);
-    });
-  } catch(err){console.error(err);}
+  const data = await fetchJSON(`${API_BASE}?route=expired`);
+  if(!data) return;
+  const tbody = document.getElementById('expired-table-body'); tbody.innerHTML='';
+  data.forEach(row=>{
+    const tr=document.createElement('tr'); tr.classList.add('expired');
+    tr.innerHTML=`<td>${row.name}</td><td>${Number(row.price).toFixed(2)}</td><td>${row.expiry_date}</td><td>${row.expired_date}</td><td>${row.quantity}</td>`;
+    tbody.appendChild(tr);
+  });
 }
 
-// --- SALE PRODUCTS ---
+// --- SALES PRODUCTS ---
 let saleProducts=[];
 async function loadSaleProducts(){
-  try{
-    const res = await fetch(`${API_BASE}?route=sale-products`);
-    saleProducts = await res.json();
-    document.getElementById('sale-items-body').innerHTML='';
-    recalcTotals();
-  } catch(err){console.error(err);}
+  const data = await fetchJSON(`${API_BASE}?route=sale-products`);
+  if(!data) return;
+  saleProducts = data;
+  document.getElementById('sale-items-body').innerHTML='';
+  recalcTotals();
 }
 
+// --- RE-CALCULATE TOTALS ---
 function recalcTotals(){
   let total=0;
   document.querySelectorAll('#sale-items-body tr').forEach(tr=>{
@@ -331,11 +323,12 @@ function recalcTotals(){
   });
   document.getElementById('sale-total').textContent=total.toFixed(2);
   const paid=parseFloat(document.getElementById('sale-paid').value)||0;
-  let remaining = total-paid; if(remaining<0){document.getElementById('sale-paid').value=total.toFixed(2); remaining=0;}
+  let remaining = total-paid;
+  if(remaining<0){document.getElementById('sale-paid').value=total.toFixed(2); remaining=0;}
   document.getElementById('sale-remaining').textContent=remaining.toFixed(2);
 }
 
-// Add sale item
+// --- ADD SALE ITEM ---
 document.getElementById('sale-add-item').addEventListener('click',()=>{
   const tbody=document.getElementById('sale-items-body');
   const tr=document.createElement('tr');
@@ -376,7 +369,7 @@ document.getElementById('sale-add-item').addEventListener('click',()=>{
 
 document.getElementById('sale-paid').addEventListener('input', recalcTotals);
 
-// Save sale
+// --- SAVE SALE ---
 document.getElementById('sale-save').addEventListener('click', async ()=>{
   const msgEl=document.getElementById('sale-msg'); msgEl.textContent='';
   const customer=document.getElementById('sale-customer').value.trim();
@@ -399,68 +392,51 @@ document.getElementById('sale-save').addEventListener('click', async ()=>{
   });
   if(!valid || items.length===0){msgEl.textContent='Invalid items'; return;}
 
-  try{
-    const res=await fetch(`${API_BASE}?route=sales`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({customer_name:customer||null, payment_type:paymentType, total_amount:total, paid_amount:paid, items})
-    });
-    const data=await res.json();
-    if(res.ok){msgEl.textContent='Sale saved'; document.getElementById('sale-customer').value=''; document.getElementById('sale-items-body').innerHTML=''; document.getElementById('sale-paid').value='0'; recalcTotals(); loadStock(); loadDashboard(); loadBills(); }
-    else msgEl.textContent = data.error || 'Error saving sale';
-  } catch(err){console.error(err); msgEl.textContent='Error saving sale';}
+  const data = await fetchJSON(`${API_BASE}?route=sales`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({customer_name:customer||null, payment_type:paymentType, total_amount:total, paid_amount:paid, items})
+  });
+  if(data){msgEl.textContent='Sale saved'; document.getElementById('sale-customer').value=''; document.getElementById('sale-items-body').innerHTML=''; document.getElementById('sale-paid').value='0'; recalcTotals(); loadStock(); loadDashboard(); loadBills(); }
+  else msgEl.textContent='Error saving sale';
 });
 
 // --- SALES BILLS ---
 async function loadBills(){
-  try{
-    const res = await fetch(`${API_BASE}?route=sales`);
-    const data = await res.json();
-    const tbody = document.getElementById('bills-table-body'); tbody.innerHTML='';
-    data.forEach(row=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${row.date}</td><td>${row.customer_name}</td><td>${row.payment_type}</td><td>${Number(row.total_amount).toFixed(2)}</td><td>${Number(row.paid_amount).toFixed(2)}</td><td>${Number(row.borrow_amount).toFixed(2)}</td>`;
-      tbody.appendChild(tr);
-    });
-  } catch(err){console.error(err);}
+  const data = await fetchJSON(`${API_BASE}?route=bills`);
+  if(!data) return;
+  const tbody=document.getElementById('bills-table-body'); tbody.innerHTML='';
+  data.forEach(row=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${row.date}</td><td>${row.customer||''}</td><td>${row.payment_type}</td><td>${Number(row.total_amount).toFixed(2)}</td><td>${Number(row.paid_amount).toFixed(2)}</td><td>${Number(row.borrow_amount||0).toFixed(2)}</td>`;
+    tbody.appendChild(tr);
+  });
 }
 
 // --- BORROWERS ---
 async function loadBorrowers(){
-  try{
-    const res = await fetch(`${API_BASE}?route=borrowers`);
-    const data = await res.json();
-    const tbody = document.getElementById('borrowers-table-body'); tbody.innerHTML='';
-    data.forEach(row=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML = `<td>${row.name}</td>
-                      <td>${Number(row.outstanding_amount).toFixed(2)}</td>
-                      <td><input type="number" min="1" class="borrow-pay" value="1"><button class="borrow-btn">Pay</button></td>`;
-      tbody.appendChild(tr);
-
-      const payBtn = tr.querySelector('.borrow-btn');
-      const payInput = tr.querySelector('.borrow-pay');
-      payBtn.addEventListener('click', async ()=>{
-        let amount=parseFloat(payInput.value)||0;
-        if(amount>row.outstanding_amount) amount=row.outstanding_amount;
-        if(amount<=0) return;
-        try{
-          const r = await fetch(`${API_BASE}?route=borrower-payments`,{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({borrower_id: row.id, amount})
-          });
-          const d = await r.json();
-          if(r.ok){loadBorrowers(); loadDashboard();}
-        } catch(err){console.error(err);}
+  const data = await fetchJSON(`${API_BASE}?route=borrowers`);
+  if(!data) return;
+  const tbody=document.getElementById('borrowers-table-body'); tbody.innerHTML='';
+  data.forEach(row=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${row.name}</td><td>${Number(row.outstanding).toFixed(2)}</td><td><button class="pay-btn">Pay</button></td>`;
+    tbody.appendChild(tr);
+    const btn = tr.querySelector('.pay-btn');
+    btn.addEventListener('click', async ()=>{
+      const amt=prompt('Enter payment amount:',row.outstanding);
+      const numAmt=parseFloat(amt)||0;
+      if(numAmt<=0 || numAmt>row.outstanding) {alert('Invalid amount'); return;}
+      const res = await fetchJSON(`${API_BASE}?route=borrowers`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({borrower_id:row.id, amount:numAmt})
       });
+      if(res){alert('Payment saved'); loadBorrowers(); loadDashboard(); loadBills();}
+      else alert('Error saving payment');
     });
-  } catch(err){console.error(err);}
+  });
 }
-
-// Initial load
-loadDashboard();
 </script>
 </body>
 </html>
-
