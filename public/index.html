@@ -420,7 +420,7 @@ async function loadBorrowers(){
   const tbody=document.getElementById('borrowers-table-body'); tbody.innerHTML='';
   data.forEach(row=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${row.name}</td><td>${Number(row.outstanding).toFixed(2)}</td><td><button class="pay-btn">Pay</button></td>`;
+    tr.innerHTML=`<td>${row.name}</td><td>${Number(row.outstanding_amount).toFixed(2)}</td><td><button class="pay-btn">Pay</button></td>`;
     tbody.appendChild(tr);
     const btn = tr.querySelector('.pay-btn');
     btn.addEventListener('click', async ()=>{
@@ -440,5 +440,6 @@ async function loadBorrowers(){
 </script>
 </body>
 </html>
+
 
 
