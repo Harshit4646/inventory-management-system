@@ -403,7 +403,7 @@ document.getElementById('sale-save').addEventListener('click', async ()=>{
 
 // --- SALES BILLS ---
 async function loadBills(){
-  const data = await fetchJSON(`${API_BASE}?route=bills`);
+  const data = await fetchJSON(`${API_BASE}?route=sales`);
   if(!data) return;
   const tbody=document.getElementById('bills-table-body'); tbody.innerHTML='';
   data.forEach(row=>{
@@ -440,3 +440,4 @@ async function loadBorrowers(){
 </script>
 </body>
 </html>
+
