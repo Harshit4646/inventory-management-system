@@ -280,14 +280,14 @@ app.all("/api/server", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // Save payment
+    // 1️⃣ Save payment
     await client.query(
       `INSERT INTO borrower_payments (borrower_id, amount_paid)
        VALUES ($1, $2)`,
       [borrower_id, amount]
     );
 
-    // Reduce borrower outstanding
+    // 2️⃣ Reduce borrower outstanding
     await client.query(
       `UPDATE borrowers
        SET outstanding_amount = outstanding_amount - $1
@@ -295,46 +295,48 @@ app.all("/api/server", async (req, res) => {
       [amount, borrower_id]
     );
 
-    // 🔥 Reduce borrow from sales (oldest borrow first)
+    // 3️⃣ APPLY PAYMENT TO SALES (FIFO)
     let remaining = amount;
 
-    const borrowSales = (
-      await client.query(
-        `SELECT id, borrow_amount
-         FROM sales
-         WHERE customer_name = (
-           SELECT name FROM borrowers WHERE id = $1
-         )
-         AND borrow_amount > 0
-         ORDER BY sale_date ASC`,
-        [borrower_id]
-      )
-    ).rows;
+    const sales = await client.query(
+      `SELECT id, borrow_amount
+       FROM sales
+       WHERE customer_name = (
+         SELECT name FROM borrowers WHERE id = $1
+       )
+       AND borrow_amount > 0
+       ORDER BY sale_date ASC`,
+      [borrower_id]
+    );
 
-    for (const sale of borrowSales) {
+    for (const sale of sales.rows) {
       if (remaining <= 0) break;
 
-      const deduct = Math.min(remaining, sale.borrow_amount);
+      const apply = Math.min(remaining, sale.borrow_amount);
 
       await client.query(
         `UPDATE sales
-         SET borrow_amount = borrow_amount - $1
+         SET
+           paid_amount = paid_amount + $1,
+           borrow_amount = borrow_amount - $1
          WHERE id = $2`,
-        [deduct, sale.id]
+        [apply, sale.id]
       );
 
-      remaining -= deduct;
+      remaining -= apply;
     }
 
     await client.query("COMMIT");
     return res.json({ success: true });
   } catch (err) {
     await client.query("ROLLBACK");
-    throw err;
+    console.error(err);
+    return res.status(500).json({ error: "Payment failed" });
   } finally {
     client.release();
   }
 }
+
 
 
     return res.status(404).json({ error: "Invalid route" });
@@ -345,4 +347,5 @@ app.all("/api/server", async (req, res) => {
 });
 
 export default app;
+
 
