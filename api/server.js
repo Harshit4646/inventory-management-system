@@ -1,4 +1,4 @@
-// server.js
+// api/server.js
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -9,15 +9,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Connect to Postgres
+// Postgres connection (Vercel ready)
 const sql = postgres(process.env.DATABASE_URL, {
-  ssl: { rejectUnauthorized: false }, // required for Vercel / hosted Postgres
+  ssl: { rejectUnauthorized: false },
 });
 
-// Prevent running moveExpiredStock multiple times per day
+// Prevent repeated expired stock move
 let lastExpiredCheck = null;
 
-// Move expired stock to expired_stock table
+// Move expired stock
 async function moveExpiredStock() {
   const today = new Date().toISOString().slice(0, 10);
   if (lastExpiredCheck === today) return;
@@ -41,16 +41,16 @@ async function moveExpiredStock() {
   }
 }
 
-// Single endpoint for all routes
-app.all("/api/server", async (req, res) => {
+// Single API endpoint
+app.all("/api", async (req, res) => {
   const route = req.query.route;
-
   try {
-    await moveExpiredStock(); // Move expired stock first
+    await moveExpiredStock();
+
+    const today = new Date().toISOString().slice(0, 10);
 
     /* ---------------- DASHBOARD ---------------- */
     if (route === "dashboard") {
-      const today = new Date().toISOString().slice(0, 10);
       const monthStart = today.slice(0, 7) + "-01";
 
       const [{ daily_total }] = await sql`
@@ -100,15 +100,13 @@ app.all("/api/server", async (req, res) => {
         `;
         return res.json(rows);
       }
-
       if (req.method === "POST") {
         const { name, price, expiry_date, quantity } = req.body;
         if (!name || !price || !expiry_date || !quantity) {
-          return res.status(400).json({ error: "Missing required fields" });
+          return res.status(400).json({ error: "Missing fields" });
         }
 
-        const result = await sql.begin(async sql => {
-          // Insert product if not exists
+        await sql.begin(async sql => {
           const [product] = await sql`
             INSERT INTO products (name, price, expiry_date)
             VALUES (${name}, ${price}, ${expiry_date})
@@ -123,14 +121,13 @@ app.all("/api/server", async (req, res) => {
           } else {
             await sql`UPDATE stock SET quantity = quantity + ${quantity} WHERE product_id = ${pid}`;
           }
-          return { success: true };
         });
 
-        return res.json(result);
+        return res.json({ success: true });
       }
     }
 
-    /* ---------------- EXPIRED STOCK ---------------- */
+    /* ---------------- EXPIRED ---------------- */
     if (route === "expired") {
       const rows = await sql`
         SELECT p.name, p.price, p.expiry_date, e.quantity, e.expired_date
@@ -143,7 +140,6 @@ app.all("/api/server", async (req, res) => {
 
     /* ---------------- SALE PRODUCTS ---------------- */
     if (route === "sale-products") {
-      const today = new Date().toISOString().slice(0, 10);
       const rows = await sql`
         SELECT p.id, p.name, p.price, p.expiry_date, s.quantity
         FROM products p
@@ -163,7 +159,6 @@ app.all("/api/server", async (req, res) => {
         `;
         return res.json(rows);
       }
-
       if (req.method === "POST") {
         const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
         if (!items || items.length === 0) return res.status(400).json({ error: "No sale items" });
@@ -171,14 +166,12 @@ app.all("/api/server", async (req, res) => {
         const borrow_amount = payment_type === "BORROW" ? total_amount - paid_amount : 0;
 
         await sql.begin(async sql => {
-          // Insert sale
           const [sale] = await sql`
             INSERT INTO sales (sale_date, customer_name, payment_type, total_amount, paid_amount, borrow_amount)
             VALUES (NOW(), ${customer_name}, ${payment_type}, ${total_amount}, ${paid_amount}, ${borrow_amount})
             RETURNING id
           `;
 
-          // Update stock & sale items
           for (const it of items) {
             await sql`UPDATE stock SET quantity = quantity - ${it.quantity} WHERE product_id = ${it.product_id}`;
             await sql`
@@ -187,7 +180,6 @@ app.all("/api/server", async (req, res) => {
             `;
           }
 
-          // Handle borrowers
           if (borrow_amount > 0 && customer_name) {
             const [b] = await sql`SELECT * FROM borrowers WHERE name = ${customer_name}`;
             if (!b) {
@@ -228,7 +220,7 @@ app.all("/api/server", async (req, res) => {
     return res.status(404).json({ error: "Invalid route" });
   } catch (err) {
     console.error("Server error:", err);
-    return res.status(500).json({ error: err.message, stack: err.stack });
+    return res.status(500).json({ error: err.message });
   }
 });
 
