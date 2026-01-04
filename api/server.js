@@ -272,30 +272,70 @@ app.all("/api/server", async (req, res) => {
     }
 
     if (route === "borrower-payments" && req.method === "POST") {
-      const { borrower_id, amount } = req.body;
-      if (!borrower_id || !amount) return res.status(400).json({ error: "Missing fields" });
+  const { borrower_id, amount } = req.body;
+  if (!borrower_id || !amount)
+    return res.status(400).json({ error: "Missing fields" });
 
-      const client = await pool.connect();
-      try {
-        await client.query("BEGIN");
-        await client.query(`INSERT INTO borrower_payments (borrower_id, amount_paid) VALUES ($1, $2)`, [
-          borrower_id,
-          amount,
-        ]);
-        await client.query(`UPDATE borrowers SET outstanding_amount = outstanding_amount - $1 WHERE id = $2`, [
-          amount,
-          borrower_id,
-        ]);
-        await client.query("COMMIT");
-      } catch (err) {
-        await client.query("ROLLBACK");
-        throw err;
-      } finally {
-        client.release();
-      }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
 
-      return res.json({ success: true });
+    // Save payment
+    await client.query(
+      `INSERT INTO borrower_payments (borrower_id, amount_paid)
+       VALUES ($1, $2)`,
+      [borrower_id, amount]
+    );
+
+    // Reduce borrower outstanding
+    await client.query(
+      `UPDATE borrowers
+       SET outstanding_amount = outstanding_amount - $1
+       WHERE id = $2`,
+      [amount, borrower_id]
+    );
+
+    // 🔥 Reduce borrow from sales (oldest borrow first)
+    let remaining = amount;
+
+    const borrowSales = (
+      await client.query(
+        `SELECT id, borrow_amount
+         FROM sales
+         WHERE customer_name = (
+           SELECT name FROM borrowers WHERE id = $1
+         )
+         AND borrow_amount > 0
+         ORDER BY sale_date ASC`,
+        [borrower_id]
+      )
+    ).rows;
+
+    for (const sale of borrowSales) {
+      if (remaining <= 0) break;
+
+      const deduct = Math.min(remaining, sale.borrow_amount);
+
+      await client.query(
+        `UPDATE sales
+         SET borrow_amount = borrow_amount - $1
+         WHERE id = $2`,
+        [deduct, sale.id]
+      );
+
+      remaining -= deduct;
     }
+
+    await client.query("COMMIT");
+    return res.json({ success: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 
     return res.status(404).json({ error: "Invalid route" });
   } catch (err) {
@@ -305,3 +345,4 @@ app.all("/api/server", async (req, res) => {
 });
 
 export default app;
+
