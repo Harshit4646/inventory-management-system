@@ -139,57 +139,55 @@ app.all("/api/server", async (req, res) => {
     }
 
     /* SALES */
-    if (route === "sales" && req.method === "GET") {
-      const rows = await sql`
-        SELECT sale_date::date AS date,customer_name,payment_type,
-        total_amount,paid_amount,borrow_amount
-        FROM sales ORDER BY sale_date DESC
-      `;
-      return res.json(rows);
-    }
-
     if (route === "sales" && req.method === "POST") {
-      const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
-      const borrow_amount =
-        payment_type === "BORROW" ? total_amount - paid_amount : 0;
+  const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
+  const borrow_amount = payment_type === "BORROW" ? total_amount - paid_amount : 0;
 
-      await sql.transaction(
-        items.map(it => sql`
-          UPDATE stock SET quantity = quantity - ${it.quantity}
-          WHERE product_id = ${it.product_id}
-        `)
-      );
+  // 1. Decrease stock
+  await sql.transaction(
+    items.map(it => sql`
+      UPDATE stock SET quantity = quantity - ${it.quantity}
+      WHERE product_id = ${it.product_id}
+    `)
+  );
 
-      const [sale] = await sql`
-        INSERT INTO sales
-        (sale_date,customer_name,payment_type,total_amount,paid_amount,borrow_amount)
-        VALUES (NOW(),${customer_name},${payment_type},
-                ${total_amount},${paid_amount},${borrow_amount})
-        RETURNING id
-      `;
+  // 2. Insert sale
+  const [sale] = await sql`
+    INSERT INTO sales
+    (sale_date, customer_name, payment_type, total_amount, paid_amount, borrow_amount)
+    VALUES (NOW(), ${customer_name}, ${payment_type}, ${total_amount}, ${paid_amount}, ${borrow_amount})
+    RETURNING id
+  `;
 
-      await sql.transaction(
-        items.map(it => sql`
-          INSERT INTO sale_items
-          (sale_id,product_id,price,quantity,line_total)
-          VALUES
-          (${sale.id},${it.product_id},${it.price},
-           ${it.quantity},${it.price * it.quantity})
-        `)
-      );
+  // 3. Attach expiry_date to items
+  for (const it of items) {
+    const [product] = await sql`
+      SELECT expiry_date FROM products WHERE id=${it.product_id}
+    `;
+    it.expiry_date = product.expiry_date;
+  }
 
-      if (borrow_amount > 0) {
-        await sql`
-          INSERT INTO borrowers (name,outstanding_amount)
-          VALUES (${customer_name},${borrow_amount})
-          ON CONFLICT (name)
-          DO UPDATE SET outstanding_amount =
-            borrowers.outstanding_amount + ${borrow_amount}
-        `;
-      }
+  // 4. Insert sale_items with expiry_date
+  await sql.transaction(
+    items.map(it => sql`
+      INSERT INTO sale_items
+      (sale_id, product_id, price, quantity, line_total, expiry_date)
+      VALUES (${sale.id}, ${it.product_id}, ${it.price}, ${it.quantity}, ${it.price * it.quantity}, ${it.expiry_date})
+    `)
+  );
 
-      return res.json({ success: true });
-    }
+  // 5. Borrowers
+  if (borrow_amount > 0) {
+    await sql`
+      INSERT INTO borrowers (name,outstanding_amount)
+      VALUES (${customer_name},${borrow_amount})
+      ON CONFLICT (name)
+      DO UPDATE SET outstanding_amount = borrowers.outstanding_amount + ${borrow_amount}
+    `;
+  }
+
+  return res.json({ success: true });
+}
 
     /* BORROWERS */
     if (route === "borrowers") {
@@ -226,3 +224,4 @@ app.all("/api/server", async (req, res) => {
 });
 
 export default app;
+
