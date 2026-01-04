@@ -213,7 +213,7 @@
 </main>
 
 <script>
-const API_BASE = '/api'; // Server.js endpoints
+const API_BASE = '/api/server?route='; // Server.js endpoints
 
 // Navigation handling
 document.querySelectorAll('nav a').forEach(a => {
@@ -238,7 +238,7 @@ document.querySelectorAll('nav a').forEach(a => {
 // --- Dashboard ---
 async function loadDashboard() {
   try {
-    const res = await fetch(`${API_BASE}/dashboard`);
+    const res = await fetch(API_BASE+'dashboard`);
     const data = await res.json();
     document.getElementById('dash-daily-total').textContent = Number(data.daily_total).toFixed(2);
     document.getElementById('dash-monthly-total').textContent = Number(data.monthly_total).toFixed(2);
@@ -254,7 +254,7 @@ async function loadDashboard() {
 // --- Stock ---
 async function loadStock() {
   try {
-    const res = await fetch(`${API_BASE}/stock`);
+    const res = await fetch(API_BASE+'stock`);
     const data = await res.json();
     const tbody = document.getElementById('stock-table-body');
     tbody.innerHTML = '';
@@ -466,3 +466,4 @@ loadDashboard(); loadStock(); loadSaleProducts(); loadExpired(); loadBills(); lo
 </script>
 </body>
 </html>
+
