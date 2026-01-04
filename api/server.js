@@ -11,12 +11,13 @@ app.use(express.json());
 
 // Connect to Postgres
 const sql = postgres(process.env.DATABASE_URL, {
-  ssl: { rejectUnauthorized: false } // required for Vercel / hosted Postgres
+  ssl: { rejectUnauthorized: false }, // required for Vercel / hosted Postgres
 });
 
 // Prevent running moveExpiredStock multiple times per day
 let lastExpiredCheck = null;
 
+// Move expired stock to expired_stock table
 async function moveExpiredStock() {
   const today = new Date().toISOString().slice(0, 10);
   if (lastExpiredCheck === today) return;
@@ -28,6 +29,7 @@ async function moveExpiredStock() {
     JOIN products p ON p.id = s.product_id
     WHERE p.expiry_date < ${today}
   `;
+
   for (const row of expiredRows) {
     if (row.quantity > 0) {
       await sql`
@@ -39,12 +41,12 @@ async function moveExpiredStock() {
   }
 }
 
+// Single endpoint for all routes
 app.all("/api/server", async (req, res) => {
   const route = req.query.route;
 
   try {
-    // Move expired stock first
-    await moveExpiredStock();
+    await moveExpiredStock(); // Move expired stock first
 
     /* ---------------- DASHBOARD ---------------- */
     if (route === "dashboard") {
@@ -82,7 +84,7 @@ app.all("/api/server", async (req, res) => {
         daily_cash,
         daily_online,
         daily_borrow,
-        borrower_payments
+        borrower_payments,
       });
     }
 
@@ -94,33 +96,28 @@ app.all("/api/server", async (req, res) => {
           FROM products p
           JOIN stock s ON s.product_id = p.id
           WHERE s.quantity > 0
+          ORDER BY p.name
         `;
         return res.json(rows);
       }
 
       if (req.method === "POST") {
         const { name, price, expiry_date, quantity } = req.body;
-
         if (!name || !price || !expiry_date || !quantity) {
           return res.status(400).json({ error: "Missing required fields" });
         }
 
-        // Use transaction for safety
         const result = await sql.begin(async sql => {
-          // Insert or get product
+          // Insert product if not exists
           const [product] = await sql`
             INSERT INTO products (name, price, expiry_date)
             VALUES (${name}, ${price}, ${expiry_date})
             ON CONFLICT (name, price, expiry_date) DO UPDATE SET name = EXCLUDED.name
             RETURNING id
           `;
-
           const pid = product.id;
 
-          // Update stock
-          const existing = await sql`
-            SELECT * FROM stock WHERE product_id = ${pid}
-          `;
+          const existing = await sql`SELECT * FROM stock WHERE product_id = ${pid}`;
           if (existing.length === 0) {
             await sql`INSERT INTO stock (product_id, quantity) VALUES (${pid}, ${quantity})`;
           } else {
@@ -139,6 +136,7 @@ app.all("/api/server", async (req, res) => {
         SELECT p.name, p.price, p.expiry_date, e.quantity, e.expired_date
         FROM expired_stock e
         JOIN products p ON p.id = e.product_id
+        ORDER BY e.expired_date DESC
       `;
       return res.json(rows);
     }
@@ -151,6 +149,7 @@ app.all("/api/server", async (req, res) => {
         FROM products p
         JOIN stock s ON s.product_id = p.id
         WHERE p.expiry_date >= ${today} AND s.quantity > 0
+        ORDER BY p.name
       `;
       return res.json(rows);
     }
@@ -167,13 +166,11 @@ app.all("/api/server", async (req, res) => {
 
       if (req.method === "POST") {
         const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
-        if (!items || items.length === 0) {
-          return res.status(400).json({ error: "No sale items" });
-        }
+        if (!items || items.length === 0) return res.status(400).json({ error: "No sale items" });
 
         const borrow_amount = payment_type === "BORROW" ? total_amount - paid_amount : 0;
 
-        const result = await sql.begin(async sql => {
+        await sql.begin(async sql => {
           // Insert sale
           const [sale] = await sql`
             INSERT INTO sales (sale_date, customer_name, payment_type, total_amount, paid_amount, borrow_amount)
@@ -181,11 +178,9 @@ app.all("/api/server", async (req, res) => {
             RETURNING id
           `;
 
-          // Insert sale_items and update stock
+          // Update stock & sale items
           for (const it of items) {
-            await sql`
-              UPDATE stock SET quantity = quantity - ${it.quantity} WHERE product_id = ${it.product_id}
-            `;
+            await sql`UPDATE stock SET quantity = quantity - ${it.quantity} WHERE product_id = ${it.product_id}`;
             await sql`
               INSERT INTO sale_items (sale_id, product_id, price, quantity, line_total)
               VALUES (${sale.id}, ${it.product_id}, ${it.price}, ${it.quantity}, ${it.price * it.quantity})
@@ -196,33 +191,29 @@ app.all("/api/server", async (req, res) => {
           if (borrow_amount > 0 && customer_name) {
             const [b] = await sql`SELECT * FROM borrowers WHERE name = ${customer_name}`;
             if (!b) {
-              await sql`
-                INSERT INTO borrowers (name, outstanding_amount)
-                VALUES (${customer_name}, ${borrow_amount})
-              `;
+              await sql`INSERT INTO borrowers (name, outstanding_amount) VALUES (${customer_name}, ${borrow_amount})`;
             } else {
-              await sql`
-                UPDATE borrowers SET outstanding_amount = outstanding_amount + ${borrow_amount} WHERE id = ${b.id}
-              `;
+              await sql`UPDATE borrowers SET outstanding_amount = outstanding_amount + ${borrow_amount} WHERE id = ${b.id}`;
             }
           }
-
-          return { success: true };
         });
 
-        return res.json(result);
+        return res.json({ success: true });
       }
     }
 
     /* ---------------- BORROWERS ---------------- */
     if (route === "borrowers") {
       const rows = await sql`
-        SELECT id, name, outstanding_amount FROM borrowers WHERE outstanding_amount > 0
+        SELECT id, name, outstanding_amount
+        FROM borrowers
+        WHERE outstanding_amount > 0
+        ORDER BY name
       `;
       return res.json(rows);
     }
 
-    if (route === "borrower-payments") {
+    if (route === "borrower-payments" && req.method === "POST") {
       const { borrower_id, amount } = req.body;
       if (!borrower_id || !amount) return res.status(400).json({ error: "Missing fields" });
 
@@ -235,9 +226,9 @@ app.all("/api/server", async (req, res) => {
     }
 
     return res.status(404).json({ error: "Invalid route" });
-  } catch (e) {
-    console.error("Server error:", e);
-    return res.status(500).json({ error: e.message, stack: e.stack });
+  } catch (err) {
+    console.error("Server error:", err);
+    return res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
