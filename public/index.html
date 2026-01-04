@@ -213,7 +213,7 @@
 </main>
 
 <script>
-  const API_BASE = 'api/server'; // change when deployed
+  const API_BASE = 'api/server?route='; // change when deployed
 
   // Nav handling
   document.querySelectorAll('nav a').forEach(a => {
@@ -235,7 +235,7 @@
 
   // Dashboard
   async function loadDashboard() {
-    const res = await fetch(API_BASE + '/dashboard');
+    const res = await fetch(API_BASE + 'dashboard');
     const data = await res.json();
     document.getElementById('dash-daily-total').textContent = Number(data.daily_total).toFixed(2);
     document.getElementById('dash-monthly-total').textContent = Number(data.monthly_total).toFixed(2);
@@ -247,7 +247,7 @@
 
   // Stock
   async function loadStock() {
-    const res = await fetch(API_BASE + '/stock');
+    const res = await fetch(API_BASE + 'stock');
     const data = await res.json();
     const tbody = document.getElementById('stock-table-body');
     tbody.innerHTML = '';
@@ -278,7 +278,7 @@
       msgEl.textContent = 'Fill all fields correctly.';
       return;
     }
-    const res = await fetch(API_BASE + '/stock', {
+    const res = await fetch(API_BASE + 'stock', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, price, expiry_date: expiry, quantity: qty })
@@ -298,7 +298,7 @@
 
   // Expired
   async function loadExpired() {
-    const res = await fetch(API_BASE + '/expired');
+    const res = await fetch(API_BASE + 'expired');
     const data = await res.json();
     const tbody = document.getElementById('expired-table-body');
     tbody.innerHTML = '';
@@ -338,7 +338,7 @@
   }
 
   async function loadSaleProducts() {
-    const res = await fetch(API_BASE + '/sale-products');
+    const res = await fetch(API_BASE + 'sale-products');
     saleProducts = await res.json();
     const tbody = document.getElementById('sale-items-body');
     tbody.innerHTML = '';
@@ -443,7 +443,7 @@
       return;
     }
 
-    const res = await fetch(API_BASE + '/sales', {
+    const res = await fetch(API_BASE + 'sales', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -535,6 +535,7 @@
 </script>
 </body>
 </html>
+
 
 
 
