@@ -9,12 +9,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* MOVE EXPIRED STOCK */
 async function moveExpiredStock() {
   const today = new Date().toISOString().slice(0, 10);
-
   const expiredRows = await sql`
-    SELECT s.id AS stock_id, s.product_id, s.quantity
+    SELECT s.id as stock_id, s.product_id, s.quantity
     FROM stock s
     JOIN products p ON p.id = s.product_id
     WHERE p.expiry_date < ${today}
@@ -31,7 +29,6 @@ async function moveExpiredStock() {
   }
 }
 
-/* MAIN ROUTER */
 app.all("/api/server", async (req, res) => {
   const route = req.query.route;
 
@@ -47,23 +44,27 @@ app.all("/api/server", async (req, res) => {
         SELECT COALESCE(SUM(total_amount),0) daily_total
         FROM sales WHERE sale_date::date=${today}
       `;
+
       const [{ monthly_total }] = await sql`
         SELECT COALESCE(SUM(total_amount),0) monthly_total
-        FROM sales
-        WHERE sale_date::date BETWEEN ${monthStart} AND ${today}
+        FROM sales WHERE sale_date::date BETWEEN ${monthStart} AND ${today}
       `;
+
       const [{ daily_cash }] = await sql`
         SELECT COALESCE(SUM(paid_amount),0) daily_cash
         FROM sales WHERE sale_date::date=${today} AND payment_type='CASH'
       `;
+
       const [{ daily_online }] = await sql`
         SELECT COALESCE(SUM(paid_amount),0) daily_online
         FROM sales WHERE sale_date::date=${today} AND payment_type='ONLINE'
       `;
+
       const [{ daily_borrow }] = await sql`
         SELECT COALESCE(SUM(borrow_amount),0) daily_borrow
         FROM sales WHERE sale_date::date=${today} AND payment_type='BORROW'
       `;
+
       const [{ borrower_payments }] = await sql`
         SELECT COALESCE(SUM(amount_paid),0) borrower_payments
         FROM borrower_payments WHERE payment_date::date=${today}
@@ -83,8 +84,7 @@ app.all("/api/server", async (req, res) => {
     if (route === "stock" && req.method === "GET") {
       const rows = await sql`
         SELECT p.name,p.price,p.expiry_date,s.quantity
-        FROM products p
-        JOIN stock s ON s.product_id=p.id
+        FROM products p JOIN stock s ON s.product_id=p.id
         WHERE s.quantity>0
       `;
       return res.json(rows);
@@ -92,10 +92,6 @@ app.all("/api/server", async (req, res) => {
 
     if (route === "stock" && req.method === "POST") {
       const { name, price, expiry_date, quantity } = req.body;
-
-      if (!expiry_date) {
-        throw new Error("expiry_date is required");
-      }
 
       let product = await sql`
         SELECT id FROM products
@@ -111,19 +107,13 @@ app.all("/api/server", async (req, res) => {
       }
 
       const pid = product[0].id;
-      const stock = await sql`SELECT * FROM stock WHERE product_id=${pid}`;
 
-      if (!stock.length) {
-        await sql`
-          INSERT INTO stock (product_id,quantity)
-          VALUES (${pid},${quantity})
-        `;
-      } else {
-        await sql`
-          UPDATE stock SET quantity=quantity+${quantity}
-          WHERE product_id=${pid}
-        `;
-      }
+      await sql`
+        INSERT INTO stock (product_id,quantity)
+        VALUES (${pid},${quantity})
+        ON CONFLICT (product_id)
+        DO UPDATE SET quantity = stock.quantity + ${quantity}
+      `;
 
       return res.json({ success: true });
     }
@@ -132,8 +122,7 @@ app.all("/api/server", async (req, res) => {
     if (route === "expired") {
       const rows = await sql`
         SELECT p.name,p.price,p.expiry_date,e.quantity,e.expired_date
-        FROM expired_stock e
-        JOIN products p ON p.id=e.product_id
+        FROM expired_stock e JOIN products p ON p.id=e.product_id
       `;
       return res.json(rows);
     }
@@ -143,83 +132,64 @@ app.all("/api/server", async (req, res) => {
       const today = new Date().toISOString().slice(0, 10);
       const rows = await sql`
         SELECT p.id,p.name,p.price,p.expiry_date,s.quantity
-        FROM products p
-        JOIN stock s ON s.product_id=p.id
+        FROM products p JOIN stock s ON s.product_id=p.id
         WHERE p.expiry_date>=${today} AND s.quantity>0
       `;
       return res.json(rows);
     }
 
-    /* SALES LIST */
+    /* SALES */
     if (route === "sales" && req.method === "GET") {
       const rows = await sql`
-        SELECT id,sale_date::date AS date,customer_name,payment_type,
+        SELECT sale_date::date AS date,customer_name,payment_type,
         total_amount,paid_amount,borrow_amount
         FROM sales ORDER BY sale_date DESC
       `;
       return res.json(rows);
     }
 
-    /* SALES SAVE */
     if (route === "sales" && req.method === "POST") {
-  const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
+      const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
+      const borrow_amount =
+        payment_type === "BORROW" ? total_amount - paid_amount : 0;
 
-  let borrow_amount =
-    payment_type === "BORROW" ? total_amount - paid_amount : 0;
+      await sql.transaction(
+        items.map(it => sql`
+          UPDATE stock SET quantity = quantity - ${it.quantity}
+          WHERE product_id = ${it.product_id}
+        `)
+      );
 
-  await sql.transaction(async tx => {
-    const [sale] = await tx`
-      INSERT INTO sales
-      (sale_date,customer_name,payment_type,total_amount,paid_amount,borrow_amount)
-      VALUES (NOW(),${customer_name},${payment_type},${total_amount},${paid_amount},${borrow_amount})
-      RETURNING id
-    `;
-
-    for (const it of items) {
-      const [stock] = await tx`
-        SELECT quantity FROM stock WHERE product_id=${it.product_id}
+      const [sale] = await sql`
+        INSERT INTO sales
+        (sale_date,customer_name,payment_type,total_amount,paid_amount,borrow_amount)
+        VALUES (NOW(),${customer_name},${payment_type},
+                ${total_amount},${paid_amount},${borrow_amount})
+        RETURNING id
       `;
 
-      if (!stock || stock.quantity < it.quantity) {
-        throw new Error("Insufficient stock");
-      }
+      await sql.transaction(
+        items.map(it => sql`
+          INSERT INTO sale_items
+          (sale_id,product_id,price,quantity,line_total)
+          VALUES
+          (${sale.id},${it.product_id},${it.price},
+           ${it.quantity},${it.price * it.quantity})
+        `)
+      );
 
-      await tx`
-        UPDATE stock
-        SET quantity = quantity - ${it.quantity}
-        WHERE product_id = ${it.product_id}
-      `;
-
-      await tx`
-        INSERT INTO sale_items
-        (sale_id,product_id,price,quantity,line_total)
-        VALUES
-        (${sale.id},${it.product_id},${it.price},${it.quantity},${it.price * it.quantity})
-      `;
-    }
-
-    if (borrow_amount > 0) {
-      const b = await tx`
-        SELECT id FROM borrowers WHERE name=${customer_name}
-      `;
-
-      if (!b.length) {
-        await tx`
+      if (borrow_amount > 0) {
+        await sql`
           INSERT INTO borrowers (name,outstanding_amount)
           VALUES (${customer_name},${borrow_amount})
-        `;
-      } else {
-        await tx`
-          UPDATE borrowers
-          SET outstanding_amount = outstanding_amount + ${borrow_amount}
-          WHERE id = ${b[0].id}
+          ON CONFLICT (name)
+          DO UPDATE SET outstanding_amount =
+            borrowers.outstanding_amount + ${borrow_amount}
         `;
       }
-    }
-  });
 
-  return res.json({ success: true });
-}
+      return res.json({ success: true });
+    }
 
     /* BORROWERS */
     if (route === "borrowers") {
@@ -231,30 +201,28 @@ app.all("/api/server", async (req, res) => {
     }
 
     if (route === "borrower-payments") {
-  const { borrower_id, amount } = req.body;
+      const { borrower_id, amount } = req.body;
 
-  await sql.transaction(async tx => {
-    await tx`
-      INSERT INTO borrower_payments (borrower_id,amount_paid)
-      VALUES (${borrower_id},${amount})
-    `;
+      await sql.transaction([
+        sql`
+          INSERT INTO borrower_payments (borrower_id,amount_paid)
+          VALUES (${borrower_id},${amount})
+        `,
+        sql`
+          UPDATE borrowers
+          SET outstanding_amount = outstanding_amount - ${amount}
+          WHERE id = ${borrower_id}
+        `
+      ]);
 
-    await tx`
-      UPDATE borrowers
-      SET outstanding_amount = outstanding_amount - ${amount}
-      WHERE id = ${borrower_id}
-    `;
-  });
+      return res.json({ success: true });
+    }
 
-  return res.json({ success: true });
-}
-
-    return res.status(404).json({ error: "Invalid route" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(404).json({ error: "Invalid route" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 export default app;
-
