@@ -82,7 +82,6 @@ app.get('/api/dashboard', async (req, res) => {
 });
 
 // STOCK PAGE
-
 app.get('/api/stock', async (req, res) => {
   try {
     await moveExpiredStock();
@@ -152,7 +151,6 @@ app.post('/api/stock', async (req, res) => {
 });
 
 // EXPIRED STOCK
-
 app.get('/api/expired', async (req, res) => {
   try {
     await moveExpiredStock();
@@ -169,8 +167,7 @@ app.get('/api/expired', async (req, res) => {
   }
 });
 
-// PRODUCTS FOR SALES (only non-expired with stock)
-
+// PRODUCTS FOR SALES
 app.get('/api/sale-products', async (req, res) => {
   try {
     await moveExpiredStock();
@@ -190,7 +187,6 @@ app.get('/api/sale-products', async (req, res) => {
 });
 
 // SALES
-
 app.post('/api/sales', async (req, res) => {
   try {
     const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
@@ -298,7 +294,6 @@ app.post('/api/sales', async (req, res) => {
 });
 
 // SALES BILLS
-
 app.get('/api/sales', async (req, res) => {
   try {
     const rows = await sql`
@@ -315,7 +310,6 @@ app.get('/api/sales', async (req, res) => {
 });
 
 // BORROWERS
-
 app.get('/api/borrowers', async (req, res) => {
   try {
     const rows = await sql`
@@ -355,16 +349,10 @@ app.post('/api/borrower-payments', async (req, res) => {
       VALUES (${borrower_id}, ${amount}, ${discount})
     `;
 
-    if (newOutstanding <= 0) {
-      await sql`
-        UPDATE borrowers SET outstanding_amount = 0 WHERE id = ${borrower_id}
-      `;
-    } else {
-      await sql`
-        UPDATE borrowers SET outstanding_amount = ${newOutstanding}
-        WHERE id = ${borrower_id}
-      `;
-    }
+    await sql`
+      UPDATE borrowers SET outstanding_amount = ${newOutstanding < 0 ? 0 : newOutstanding}
+      WHERE id = ${borrower_id}
+    `;
 
     res.json({ success: true });
   } catch (err) {
@@ -373,7 +361,5 @@ app.post('/api/borrower-payments', async (req, res) => {
   }
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log('Server running on port ' + port);
-});
+// **Vercel handler**
+export default app;
