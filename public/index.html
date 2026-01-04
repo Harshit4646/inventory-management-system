@@ -470,7 +470,7 @@
 
   // Bills
   async function loadBills() {
-    const res = await fetch(API_BASE + '/sales');
+    const res = await fetch(API_BASE + 'sales');
     const data = await res.json();
     const tbody = document.getElementById('bills-table-body');
     tbody.innerHTML = '';
@@ -490,7 +490,7 @@
 
   // Borrowers
   async function loadBorrowers() {
-    const res = await fetch(API_BASE + '/borrowers');
+    const res = await fetch(API_BASE + 'borrowers');
     const data = await res.json();
     const tbody = document.getElementById('borrowers-table-body');
     tbody.innerHTML = '';
@@ -512,7 +512,7 @@
           alert('Invalid amount.');
           return;
         }
-        const res2 = await fetch(API_BASE + '/borrower-payments', {
+        const res2 = await fetch(API_BASE + 'borrower-payments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ borrower_id: row.id, amount: amt })
@@ -535,6 +535,7 @@
 </script>
 </body>
 </html>
+
 
 
 
