@@ -1,208 +1,542 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import postgres from "postgres";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Inventory Management System</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; }
+    header { background: #222; color: #fff; padding: 10px 20px; }
+    nav a { color: #fff; margin-right: 15px; text-decoration: none; font-weight: bold; }
+    nav a.active { text-decoration: underline; }
+    main { padding: 20px; }
+    section { display: none; }
+    section.active { display: block; }
+    h2 { margin-top: 0; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; background: #fff; }
+    th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; }
+    th { background: #eee; }
+    .near-expiry { background: #fff3cd; }
+    .expired { background: #f8d7da; }
+    .form-row { margin-bottom: 8px; }
+    label { display: inline-block; width: 140px; }
+    input, select { padding: 5px; font-size: 14px; }
+    button { padding: 6px 12px; margin: 4px 0; cursor: pointer; }
+    .pill { display: inline-block; padding: 4px 8px; border-radius: 4px; margin-right: 6px; }
+    .pill.cash { background: #d4edda; }
+    .pill.online { background: #d1ecf1; }
+    .pill.borrow { background: #f8d7da; }
+    .card { background: #fff; padding: 10px 15px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 0 2px rgba(0,0,0,0.1); display: inline-block; min-width: 180px; }
+    .flex { display: flex; flex-wrap: wrap; gap: 10px; }
+  </style>
+</head>
+<body>
+<header>
+  <nav>
+    <a href="#" data-section="dashboard" class="active">Dashboard</a>
+    <a href="#" data-section="stock">Stock</a>
+    <a href="#" data-section="expired">Expired</a>
+    <a href="#" data-section="sales">Sales</a>
+    <a href="#" data-section="bills">Sales Bills</a>
+    <a href="#" data-section="borrowers">Borrowers</a>
+  </nav>
+</header>
+<main>
+  <!-- DASHBOARD -->
+  <section id="dashboard" class="active">
+    <h2>Dashboard</h2>
+    <div class="flex">
+      <div class="card">
+        <strong>Daily Sales</strong><br>
+        ₹ <span id="dash-daily-total">0</span>
+      </div>
+      <div class="card">
+        <strong>Monthly Sales</strong><br>
+        ₹ <span id="dash-monthly-total">0</span>
+      </div>
+      <div class="card">
+        <span class="pill cash">Cash</span>
+        ₹ <span id="dash-daily-cash">0</span>
+      </div>
+      <div class="card">
+        <span class="pill online">Online</span>
+        ₹ <span id="dash-daily-online">0</span>
+      </div>
+      <div class="card">
+        <span class="pill borrow">Borrow Sales</span>
+        ₹ <span id="dash-daily-borrow">0</span>
+      </div>
+      <div class="card">
+        <strong>Borrower Payments Today</strong><br>
+        ₹ <span id="dash-borrower-payments">0</span>
+      </div>
+    </div>
+  </section>
 
-dotenv.config();
-const app = express();
-app.use(cors());
-app.use(express.json());
+  <!-- STOCK -->
+  <section id="stock">
+    <h2>Stock</h2>
 
-// Connect to PostgreSQL
-const sql = postgres(process.env.DATABASE_URL, { ssl: { rejectUnauthorized: false } });
+    <h3>Add / Update Stock</h3>
+    <div>
+      <div class="form-row">
+        <label>Product name:</label>
+        <input id="stock-name" type="text">
+      </div>
+      <div class="form-row">
+        <label>Price:</label>
+        <input id="stock-price" type="number" step="0.01">
+      </div>
+      <div class="form-row">
+        <label>Expiry date:</label>
+        <input id="stock-expiry" type="date">
+      </div>
+      <div class="form-row">
+        <label>Quantity:</label>
+        <input id="stock-qty" type="number">
+      </div>
+      <button id="stock-add-btn">Add / Increase Stock</button>
+      <div id="stock-msg"></div>
+    </div>
 
-// Move expired stock to expired_stock table
-async function moveExpiredStock() {
-  const today = new Date().toISOString().slice(0, 10);
-  const expiredRows = await sql`
-    SELECT s.id as stock_id, s.product_id, s.quantity
-    FROM stock s
-    JOIN products p ON p.id = s.product_id
-    WHERE p.expiry_date < ${today}
-  `;
-  for (const row of expiredRows) {
-    if (row.quantity > 0) {
-      await sql`
-        INSERT INTO expired_stock (product_id, quantity, expired_date)
-        VALUES (${row.product_id}, ${row.quantity}, ${today})
-      `;
-    }
-    await sql`DELETE FROM stock WHERE id = ${row.stock_id}`;
+    <h3>Current Stock</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Price</th>
+          <th>Expiry</th>
+          <th>Quantity</th>
+        </tr>
+      </thead>
+      <tbody id="stock-table-body"></tbody>
+    </table>
+  </section>
+
+  <!-- EXPIRED -->
+  <section id="expired">
+    <h2>Expired Stock</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Price</th>
+          <th>Expiry</th>
+          <th>Expired Date</th>
+          <th>Quantity</th>
+        </tr>
+      </thead>
+      <tbody id="expired-table-body"></tbody>
+    </table>
+  </section>
+
+  <!-- SALES -->
+  <section id="sales">
+    <h2>Sales</h2>
+    <div class="form-row">
+      <label>Customer name:</label>
+      <input id="sale-customer" type="text">
+    </div>
+    <div class="form-row">
+      <label>Payment type:</label>
+      <select id="sale-payment-type">
+        <option value="CASH">CASH</option>
+        <option value="ONLINE">ONLINE</option>
+        <option value="BORROW">BORROW</option>
+      </select>
+    </div>
+
+    <h3>Items</h3>
+    <button id="sale-add-item">Add Item</button>
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Price</th>
+          <th>Expiry</th>
+          <th>Qty</th>
+          <th>Line Total</th>
+          <th>Remove</th>
+        </tr>
+      </thead>
+      <tbody id="sale-items-body"></tbody>
+    </table>
+
+    <div class="form-row">
+      <label>Total:</label>
+      <span id="sale-total">0</span>
+    </div>
+    <div class="form-row">
+      <label>Paid amount:</label>
+      <input id="sale-paid" type="number" step="0.01" value="0">
+    </div>
+    <div class="form-row">
+      <label>Remaining:</label>
+      <span id="sale-remaining">0</span>
+    </div>
+
+    <button id="sale-save">Save Sale</button>
+    <div id="sale-msg"></div>
+  </section>
+
+  <!-- SALES BILLS -->
+  <section id="bills">
+    <h2>Sales Bills</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Customer</th>
+          <th>Payment Type</th>
+          <th>Total</th>
+          <th>Paid</th>
+          <th>Borrow</th>
+        </tr>
+      </thead>
+      <tbody id="bills-table-body"></tbody>
+    </table>
+  </section>
+
+  <!-- BORROWERS -->
+  <section id="borrowers">
+    <h2>Borrowers</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Outstanding</th>
+          <th>Pay</th>
+        </tr>
+      </thead>
+      <tbody id="borrowers-table-body"></tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+  const API_BASE = 'api/server?route='; // change when deployed
+
+  // Nav handling
+  document.querySelectorAll('nav a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const sectionId = a.dataset.section;
+      document.querySelectorAll('nav a').forEach(x => x.classList.remove('active'));
+      a.classList.add('active');
+      document.querySelectorAll('main section').forEach(sec => sec.classList.remove('active'));
+      document.getElementById(sectionId).classList.add('active');
+      if (sectionId === 'dashboard') loadDashboard();
+      if (sectionId === 'stock') loadStock();
+      if (sectionId === 'expired') loadExpired();
+      if (sectionId === 'sales') loadSaleProducts();
+      if (sectionId === 'bills') loadBills();
+      if (sectionId === 'borrowers') loadBorrowers();
+    });
+  });
+
+  // Dashboard
+  async function loadDashboard() {
+    const res = await fetch(API_BASE + 'dashboard');
+    const data = await res.json();
+    document.getElementById('dash-daily-total').textContent = Number(data.daily_total).toFixed(2);
+    document.getElementById('dash-monthly-total').textContent = Number(data.monthly_total).toFixed(2);
+    document.getElementById('dash-daily-cash').textContent = Number(data.daily_cash).toFixed(2);
+    document.getElementById('dash-daily-online').textContent = Number(data.daily_online).toFixed(2);
+    document.getElementById('dash-daily-borrow').textContent = Number(data.daily_borrow).toFixed(2);
+    document.getElementById('dash-borrower-payments').textContent = Number(data.borrower_payments).toFixed(2);
   }
-}
 
-// API route handler
-app.all("/api/server", async (req, res) => {
-  const route = req.query.route;
+  // Stock
+  async function loadStock() {
+    const res = await fetch(API_BASE + 'stock');
+    const data = await res.json();
+    const tbody = document.getElementById('stock-table-body');
+    tbody.innerHTML = '';
+    const today = new Date();
+    data.forEach(row => {
+      const tr = document.createElement('tr');
+      const expDate = new Date(row.expiry_date);
+      const diffDays = (expDate - today) / (1000*60*60*24);
+      if (diffDays <= 7 && diffDays >= 0) tr.classList.add('near-expiry');
+      tr.innerHTML = `
+        <td>${row.name}</td>
+        <td>${Number(row.price).toFixed(2)}</td>
+        <td>${row.expiry_date}</td>
+        <td>${row.quantity}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
 
-  try {
-    await moveExpiredStock();
-
-    /* DASHBOARD */
-    if (route === "dashboard") {
-      const today = new Date().toISOString().slice(0, 10);
-      const monthStart = today.slice(0, 7) + "-01";
-
-      const [{ daily_total }] = await sql`
-        SELECT COALESCE(SUM(total_amount),0) daily_total FROM sales WHERE sale_date::date=${today}
-      `;
-      const [{ monthly_total }] = await sql`
-        SELECT COALESCE(SUM(total_amount),0) monthly_total FROM sales
-        WHERE sale_date::date BETWEEN ${monthStart} AND ${today}
-      `;
-      const [{ daily_cash }] = await sql`
-        SELECT COALESCE(SUM(paid_amount),0) daily_cash FROM sales
-        WHERE sale_date::date=${today} AND payment_type='CASH'
-      `;
-      const [{ daily_online }] = await sql`
-        SELECT COALESCE(SUM(paid_amount),0) daily_online FROM sales
-        WHERE sale_date::date=${today} AND payment_type='ONLINE'
-      `;
-      const [{ daily_borrow }] = await sql`
-        SELECT COALESCE(SUM(borrow_amount),0) daily_borrow FROM sales
-        WHERE sale_date::date=${today} AND payment_type='BORROW'
-      `;
-      const [{ borrower_payments }] = await sql`
-        SELECT COALESCE(SUM(amount_paid),0) borrower_payments
-        FROM borrower_payments WHERE payment_date::date=${today}
-      `;
-
-      return res.json({
-        daily_total,
-        monthly_total,
-        daily_cash,
-        daily_online,
-        daily_borrow,
-        borrower_payments
-      });
+  document.getElementById('stock-add-btn').addEventListener('click', async () => {
+    const name = document.getElementById('stock-name').value.trim();
+    const price = parseFloat(document.getElementById('stock-price').value);
+    const expiry = document.getElementById('stock-expiry').value;
+    const qty = parseInt(document.getElementById('stock-qty').value);
+    const msgEl = document.getElementById('stock-msg');
+    msgEl.textContent = '';
+    if (!name || !price || !expiry || !qty) {
+      msgEl.textContent = 'Fill all fields correctly.';
+      return;
     }
-
-    /* STOCK GET */
-    if (route === "stock" && req.method === "GET") {
-      const rows = await sql`
-        SELECT p.id,p.name,p.price,p.expiry_date,s.quantity
-        FROM products p JOIN stock s ON s.product_id=p.id
-        WHERE s.quantity>0
-      `;
-      return res.json(rows);
+    const res = await fetch(API_BASE + 'stock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, price, expiry_date: expiry, quantity: qty })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      msgEl.textContent = 'Stock saved.';
+      document.getElementById('stock-name').value = '';
+      document.getElementById('stock-price').value = '';
+      document.getElementById('stock-expiry').value = '';
+      document.getElementById('stock-qty').value = '';
+      loadStock();
+    } else {
+      msgEl.textContent = data.error || 'Error saving stock.';
     }
+  });
 
-    /* STOCK POST */
-    if (route === "stock" && req.method === "POST") {
-      const { name, price, expiry_date, quantity } = req.body;
-      if (!name || !price || !expiry_date || !quantity) return res.status(400).json({ error: "Invalid data" });
-
-      // UPSERT product
-      const [product] = await sql`
-        INSERT INTO products (name, price, expiry_date)
-        VALUES (${name}, ${price}, ${expiry_date})
-        ON CONFLICT (name, price, expiry_date) DO UPDATE SET name=EXCLUDED.name
-        RETURNING id
+  // Expired
+  async function loadExpired() {
+    const res = await fetch(API_BASE + 'expired');
+    const data = await res.json();
+    const tbody = document.getElementById('expired-table-body');
+    tbody.innerHTML = '';
+    data.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.classList.add('expired');
+      tr.innerHTML = `
+        <td>${row.name}</td>
+        <td>${Number(row.price).toFixed(2)}</td>
+        <td>${row.expiry_date}</td>
+        <td>${row.expired_date}</td>
+        <td>${row.quantity}</td>
       `;
+      tbody.appendChild(tr);
+    });
+  }
 
-      const pid = product.id;
+  // Sales
+  let saleProducts = [];
+  function recalcTotals() {
+    let total = 0;
+    document.querySelectorAll('#sale-items-body tr').forEach(tr => {
+      const price = parseFloat(tr.querySelector('.sale-price').textContent);
+      const qty = parseInt(tr.querySelector('.sale-qty').value) || 0;
+      const lineTotal = price * qty;
+      tr.querySelector('.sale-line-total').textContent = lineTotal.toFixed(2);
+      total += lineTotal;
+    });
+    document.getElementById('sale-total').textContent = total.toFixed(2);
+    const paid = parseFloat(document.getElementById('sale-paid').value) || 0;
+    let remaining = total - paid;
+    if (remaining < 0) {
+      document.getElementById('sale-paid').value = total.toFixed(2);
+      remaining = 0;
+    }
+    document.getElementById('sale-remaining').textContent = remaining.toFixed(2);
+  }
 
-      // UPSERT stock
-      const stock = await sql`SELECT * FROM stock WHERE product_id=${pid}`;
-      if (!stock.length) {
-        await sql`INSERT INTO stock (product_id, quantity) VALUES (${pid}, ${quantity})`;
+  async function loadSaleProducts() {
+    const res = await fetch(API_BASE + 'sale-products');
+    saleProducts = await res.json();
+    const tbody = document.getElementById('sale-items-body');
+    tbody.innerHTML = '';
+    recalcTotals();
+  }
+
+  document.getElementById('sale-add-item').addEventListener('click', () => {
+    const tbody = document.getElementById('sale-items-body');
+    const tr = document.createElement('tr');
+    const options = saleProducts.map(p =>
+      `<option value="${p.id}">${p.name} | ₹${Number(p.price).toFixed(2)} | Exp: ${p.expiry_date} | Stock: ${p.quantity}</option>`
+    ).join('');
+    tr.innerHTML = `
+      <td>
+        <select class="sale-product">
+          <option value="">Select...</option>
+          ${options}
+        </select>
+      </td>
+      <td class="sale-price">0</td>
+      <td class="sale-expiry"></td>
+      <td><input class="sale-qty" type="number" min="1" value="1"></td>
+      <td class="sale-line-total">0</td>
+      <td><button class="sale-remove">X</button></td>
+    `;
+    tbody.appendChild(tr);
+
+    const sel = tr.querySelector('.sale-product');
+    const qtyInput = tr.querySelector('.sale-qty');
+
+    sel.addEventListener('change', () => {
+      const id = parseInt(sel.value);
+      const product = saleProducts.find(p => p.id === id);
+      if (product) {
+        tr.querySelector('.sale-price').textContent = Number(product.price).toFixed(2);
+        tr.querySelector('.sale-expiry').textContent = product.expiry_date;
+        if (parseInt(qtyInput.value) > product.quantity) {
+          qtyInput.value = product.quantity;
+        }
       } else {
-        await sql`UPDATE stock SET quantity=quantity+${quantity} WHERE product_id=${pid}`;
+        tr.querySelector('.sale-price').textContent = '0';
+        tr.querySelector('.sale-expiry').textContent = '';
       }
+      recalcTotals();
+    });
 
-      return res.json({ success: true });
+    qtyInput.addEventListener('input', () => {
+      const id = parseInt(sel.value);
+      const product = saleProducts.find(p => p.id === id);
+      let qty = parseInt(qtyInput.value) || 0;
+      if (product && qty > product.quantity) {
+        qty = product.quantity;
+        qtyInput.value = qty;
+      }
+      if (qty < 1) qtyInput.value = 1;
+      recalcTotals();
+    });
+
+    tr.querySelector('.sale-remove').addEventListener('click', () => {
+      tr.remove();
+      recalcTotals();
+    });
+  });
+
+  document.getElementById('sale-paid').addEventListener('input', () => {
+    recalcTotals();
+  });
+
+  document.getElementById('sale-save').addEventListener('click', async () => {
+    const msgEl = document.getElementById('sale-msg');
+    msgEl.textContent = '';
+    const customer = document.getElementById('sale-customer').value.trim();
+    const paymentType = document.getElementById('sale-payment-type').value;
+    const total = parseFloat(document.getElementById('sale-total').textContent) || 0;
+    let paid = parseFloat(document.getElementById('sale-paid').value) || 0;
+
+    if (total <= 0) {
+      msgEl.textContent = 'Add at least one item.';
+      return;
+    }
+    if (paid > total) {
+      paid = total;
+      document.getElementById('sale-paid').value = total.toFixed(2);
+    }
+    if (paymentType === 'BORROW' && !customer) {
+      msgEl.textContent = 'Customer name required for borrow.';
+      return;
     }
 
-    /* EXPIRED */
-    if (route === "expired") {
-      const rows = await sql`
-        SELECT p.name,p.price,p.expiry_date,e.quantity,e.expired_date
-        FROM expired_stock e JOIN products p ON p.id=e.product_id
+    const items = [];
+    let valid = true;
+    document.querySelectorAll('#sale-items-body tr').forEach(tr => {
+      const sel = tr.querySelector('.sale-product');
+      const productId = parseInt(sel.value);
+      const price = parseFloat(tr.querySelector('.sale-price').textContent) || 0;
+      const qty = parseInt(tr.querySelector('.sale-qty').value) || 0;
+      if (!productId || price <= 0 || qty <= 0) valid = false;
+      items.push({ product_id: productId, price, quantity: qty });
+    });
+    if (!valid || items.length === 0) {
+      msgEl.textContent = 'Invalid items.';
+      return;
+    }
+
+    const res = await fetch(API_BASE + 'sales', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customer_name: customer || null,
+        payment_type: paymentType,
+        items,
+        total_amount: total,
+        paid_amount: paid
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      msgEl.textContent = 'Sale saved.';
+      document.getElementById('sale-customer').value = '';
+      document.getElementById('sale-paid').value = '0';
+      document.getElementById('sale-items-body').innerHTML = '';
+      recalcTotals();
+      loadSaleProducts();
+      loadDashboard();
+    } else {
+      msgEl.textContent = data.error || 'Error saving sale.';
+    }
+  });
+
+  // Bills
+  async function loadBills() {
+    const res = await fetch(API_BASE + 'sales');
+    const data = await res.json();
+    const tbody = document.getElementById('bills-table-body');
+    tbody.innerHTML = '';
+    data.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${row.date}</td>
+        <td>${row.customer_name || ''}</td>
+        <td>${row.payment_type}</td>
+        <td>${Number(row.total_amount).toFixed(2)}</td>
+        <td>${Number(row.paid_amount).toFixed(2)}</td>
+        <td>${Number(row.borrow_amount).toFixed(2)}</td>
       `;
-      return res.json(rows);
-    }
-
-    /* SALE PRODUCTS */
-    if (route === "sale-products") {
-      const today = new Date().toISOString().slice(0, 10);
-      const rows = await sql`
-        SELECT p.id,p.name,p.price,p.expiry_date,s.quantity
-        FROM products p JOIN stock s ON s.product_id=p.id
-        WHERE p.expiry_date >= ${today} AND s.quantity>0
-      `;
-      return res.json(rows);
-    }
-
-    /* SALES GET */
-    if (route === "sales" && req.method === "GET") {
-      const rows = await sql`
-        SELECT sale_date::date AS date,customer_name,payment_type,total_amount,paid_amount,borrow_amount
-        FROM sales ORDER BY sale_date DESC
-      `;
-      return res.json(rows);
-    }
-
-    /* SALES POST */
-    if (route === "sales" && req.method === "POST") {
-      const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
-      const borrow_amount = payment_type === "BORROW" ? total_amount - paid_amount : 0;
-
-      // Use transaction for atomic updates
-      await sql.begin(async sqlTx => {
-        const [sale] = await sqlTx`
-          INSERT INTO sales (sale_date, customer_name, payment_type, total_amount, paid_amount, borrow_amount)
-          VALUES (NOW(), ${customer_name}, ${payment_type}, ${total_amount}, ${paid_amount}, ${borrow_amount})
-          RETURNING id
-        `;
-
-        for (const it of items) {
-          // Reduce stock by item quantity
-          await sqlTx`UPDATE stock SET quantity=quantity-${it.quantity} WHERE product_id=${it.product_id}`;
-
-          // Insert sale item
-          await sqlTx`
-            INSERT INTO sale_items (sale_id, product_id, price, quantity, line_total)
-            VALUES (${sale.id}, ${it.product_id}, ${it.price}, ${it.quantity}, ${it.price * it.quantity})
-          `;
-        }
-
-        // Update borrowers
-        if (borrow_amount > 0) {
-          const b = await sqlTx`SELECT * FROM borrowers WHERE name=${customer_name}`;
-          if (!b.length) {
-            await sqlTx`INSERT INTO borrowers (name, outstanding_amount) VALUES (${customer_name}, ${borrow_amount})`;
-          } else {
-            await sqlTx`UPDATE borrowers SET outstanding_amount=outstanding_amount+${borrow_amount} WHERE id=${b[0].id}`;
-          }
-        }
-      });
-
-      return res.json({ success: true });
-    }
-
-    /* BORROWERS */
-    if (route === "borrowers") {
-      const rows = await sql`SELECT id,name,outstanding_amount FROM borrowers WHERE outstanding_amount>0`;
-      return res.json(rows);
-    }
-
-    if (route === "borrower-payments" && req.method === "POST") {
-      const { borrower_id, amount } = req.body;
-      if (!borrower_id || !amount) return res.status(400).json({ error: "Invalid data" });
-
-      await sql.begin(async sqlTx => {
-        await sqlTx`INSERT INTO borrower_payments (borrower_id, amount_paid) VALUES (${borrower_id}, ${amount})`;
-        await sqlTx`UPDATE borrowers SET outstanding_amount=outstanding_amount-${amount} WHERE id=${borrower_id}`;
-      });
-
-      return res.json({ success: true });
-    }
-
-    return res.status(404).json({ error: "Invalid route" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
+      tbody.appendChild(tr);
+    });
   }
-});
 
-export default app;
+  // Borrowers
+  async function loadBorrowers() {
+    const res = await fetch(API_BASE + 'borrowers');
+    const data = await res.json();
+    const tbody = document.getElementById('borrowers-table-body');
+    tbody.innerHTML = '';
+    data.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${row.name}</td>
+        <td>${Number(row.outstanding_amount).toFixed(2)}</td>
+        <td>
+          <input type="number" class="borrow-pay-amount" min="1" max="${row.outstanding_amount}" value="${row.outstanding_amount}">
+          <button class="borrow-pay-btn">Pay</button>
+        </td>
+      `;
+      const btn = tr.querySelector('.borrow-pay-btn');
+      const amtInput = tr.querySelector('.borrow-pay-amount');
+      btn.addEventListener('click', async () => {
+        const amt = parseFloat(amtInput.value) || 0;
+        if (amt <= 0 || amt > row.outstanding_amount) {
+          alert('Invalid amount.');
+          return;
+        }
+        const res2 = await fetch(API_BASE + 'borrower-payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ borrower_id: row.id, amount: amt })
+        });
+        const data2 = await res2.json();
+        if (res2.ok) {
+          alert('Payment saved.');
+          loadBorrowers();
+          loadDashboard();
+        } else {
+          alert(data2.error || 'Error saving payment.');
+        }
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Initial load
+  loadDashboard();
+</script>
+</body>
+</html>
+
+
+
+
+
