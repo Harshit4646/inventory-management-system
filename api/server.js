@@ -29,7 +29,7 @@ async function moveExpiredStock() {
 }
 
 // DASHBOARD
-app.get('/api/dashboard', async (req, res) => {
+app.get('/dashboard', async (req, res) => {
   try {
     await moveExpiredStock();
     const today = new Date().toISOString().slice(0, 10);
@@ -82,7 +82,7 @@ app.get('/api/dashboard', async (req, res) => {
 });
 
 // STOCK PAGE
-app.get('/api/stock', async (req, res) => {
+app.get('/stock', async (req, res) => {
   try {
     await moveExpiredStock();
     const rows = await sql`
@@ -151,7 +151,7 @@ app.post('/api/stock', async (req, res) => {
 });
 
 // EXPIRED STOCK
-app.get('/api/expired', async (req, res) => {
+app.get('/expired', async (req, res) => {
   try {
     await moveExpiredStock();
     const rows = await sql`
@@ -187,7 +187,7 @@ app.get('/api/sale-products', async (req, res) => {
 });
 
 // SALES
-app.post('/api/sales', async (req, res) => {
+app.post('/sales', async (req, res) => {
   try {
     const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
 
@@ -294,7 +294,7 @@ app.post('/api/sales', async (req, res) => {
 });
 
 // SALES BILLS
-app.get('/api/sales', async (req, res) => {
+app.get('/sales', async (req, res) => {
   try {
     const rows = await sql`
       SELECT id, sale_date::date AS date, customer_name, payment_type,
@@ -310,7 +310,7 @@ app.get('/api/sales', async (req, res) => {
 });
 
 // BORROWERS
-app.get('/api/borrowers', async (req, res) => {
+app.get('/borrowers', async (req, res) => {
   try {
     const rows = await sql`
       SELECT id, name, outstanding_amount
@@ -325,7 +325,7 @@ app.get('/api/borrowers', async (req, res) => {
   }
 });
 
-app.post('/api/borrower-payments', async (req, res) => {
+app.post('/borrower-payments', async (req, res) => {
   try {
     const { borrower_id, amount } = req.body;
     if (!borrower_id || !amount || amount <= 0) {
@@ -363,3 +363,4 @@ app.post('/api/borrower-payments', async (req, res) => {
 
 // **Vercel handler**
 export default app;
+
