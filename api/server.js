@@ -1,15 +1,10 @@
 // api/server.js
 import postgres from "postgres";
-import dotenv from "dotenv";
 
-dotenv.config();
-
-// Postgres connection (Vercel ready)
 const sql = postgres(process.env.DATABASE_URL, {
   ssl: { rejectUnauthorized: false },
 });
 
-// Prevent repeated expired stock move
 let lastExpiredCheck = null;
 
 // Move expired stock
@@ -36,12 +31,13 @@ async function moveExpiredStock() {
   }
 }
 
-// Vercel Serverless Function
+// Main handler for Vercel serverless
 export default async function handler(req, res) {
   const route = req.query.route;
 
   try {
     await moveExpiredStock();
+
     const today = new Date().toISOString().slice(0, 10);
 
     /* ---------------- DASHBOARD ---------------- */
@@ -157,7 +153,8 @@ export default async function handler(req, res) {
 
       if (req.method === "POST") {
         const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
-        if (!items || items.length === 0) return res.status(400).json({ error: "No sale items" });
+        if (!items || items.length === 0)
+          return res.status(400).json({ error: "No sale items" });
 
         const borrow_amount = payment_type === "BORROW" ? total_amount - paid_amount : 0;
 
@@ -201,10 +198,10 @@ export default async function handler(req, res) {
       return res.status(200).json(rows);
     }
 
-    /* ---------------- BORROWER PAYMENTS ---------------- */
     if (route === "borrower-payments" && req.method === "POST") {
       const { borrower_id, amount } = req.body;
-      if (!borrower_id || !amount) return res.status(400).json({ error: "Missing fields" });
+      if (!borrower_id || !amount)
+        return res.status(400).json({ error: "Missing fields" });
 
       await sql.begin(async sql => {
         await sql`INSERT INTO borrower_payments (borrower_id, amount_paid) VALUES (${borrower_id}, ${amount})`;
@@ -216,7 +213,11 @@ export default async function handler(req, res) {
 
     return res.status(404).json({ error: "Invalid route" });
   } catch (err) {
-    console.error("Server error:", err);
-    return res.status(500).json({ error: err.message });
+    console.error("Server error:", err); // Full stack in Vercel logs
+    return res.status(500).json({
+      error: "Server error occurred",
+      message: err.message,
+      stack: err.stack,
+    });
   }
 }
