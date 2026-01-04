@@ -427,7 +427,7 @@ async function loadBorrowers(){
       const amt=prompt('Enter payment amount:',row.outstanding);
       const numAmt=parseFloat(amt)||0;
       if(numAmt<=0 || numAmt>row.outstanding) {alert('Invalid amount'); return;}
-      const res = await fetchJSON(`${API_BASE}?route=borrowers`,{
+      const res = await fetchJSON(`${API_BASE}?route=borrower-payments`,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({borrower_id:row.id, amount:numAmt})
@@ -440,4 +440,5 @@ async function loadBorrowers(){
 </script>
 </body>
 </html>
+
 
