@@ -75,7 +75,6 @@
   <!-- STOCK -->
   <section id="stock">
     <h2>Stock</h2>
-
     <h3>Add / Update Stock</h3>
     <div>
       <div class="form-row">
@@ -97,7 +96,6 @@
       <button id="stock-add-btn">Add / Increase Stock</button>
       <div id="stock-msg"></div>
     </div>
-
     <h3>Current Stock</h3>
     <table>
       <thead>
@@ -144,7 +142,6 @@
         <option value="BORROW">BORROW</option>
       </select>
     </div>
-
     <h3>Items</h3>
     <button id="sale-add-item">Add Item</button>
     <table>
@@ -160,7 +157,6 @@
       </thead>
       <tbody id="sale-items-body"></tbody>
     </table>
-
     <div class="form-row">
       <label>Total:</label>
       <span id="sale-total">0</span>
@@ -173,7 +169,6 @@
       <label>Remaining:</label>
       <span id="sale-remaining">0</span>
     </div>
-
     <button id="sale-save">Save Sale</button>
     <div id="sale-msg"></div>
   </section>
@@ -213,9 +208,9 @@
 </main>
 
 <script>
-const API_BASE = '/api/server?route='; // Server.js endpoints
+const API_BASE = '/api'; // Single endpoint on server.js
 
-// Navigation handling
+// Navigation
 document.querySelectorAll('nav a').forEach(a => {
   a.addEventListener('click', e => {
     e.preventDefault();
@@ -225,20 +220,19 @@ document.querySelectorAll('nav a').forEach(a => {
     document.querySelectorAll('main section').forEach(sec => sec.classList.remove('active'));
     document.getElementById(sectionId).classList.add('active');
 
-    // Load corresponding data
-    if (sectionId === 'dashboard') loadDashboard();
-    if (sectionId === 'stock') loadStock();
-    if (sectionId === 'expired') loadExpired();
-    if (sectionId === 'sales') loadSaleProducts();
-    if (sectionId === 'bills') loadBills();
-    if (sectionId === 'borrowers') loadBorrowers();
+    if(sectionId==='dashboard') loadDashboard();
+    if(sectionId==='stock') loadStock();
+    if(sectionId==='expired') loadExpired();
+    if(sectionId==='sales') loadSaleProducts();
+    if(sectionId==='bills') loadBills();
+    if(sectionId==='borrowers') loadBorrowers();
   });
 });
 
-// --- Dashboard ---
+// --- DASHBOARD ---
 async function loadDashboard() {
   try {
-    const res = await fetch(API_BASE+'dashboard`);
+    const res = await fetch(`${API_BASE}?route=dashboard`);
     const data = await res.json();
     document.getElementById('dash-daily-total').textContent = Number(data.daily_total).toFixed(2);
     document.getElementById('dash-monthly-total').textContent = Number(data.monthly_total).toFixed(2);
@@ -246,15 +240,13 @@ async function loadDashboard() {
     document.getElementById('dash-daily-online').textContent = Number(data.daily_online).toFixed(2);
     document.getElementById('dash-daily-borrow').textContent = Number(data.daily_borrow).toFixed(2);
     document.getElementById('dash-borrower-payments').textContent = Number(data.borrower_payments).toFixed(2);
-  } catch (err) {
-    console.error("Dashboard error:", err);
-  }
+  } catch(err){console.error('Dashboard error:',err);}
 }
 
-// --- Stock ---
+// --- STOCK ---
 async function loadStock() {
   try {
-    const res = await fetch(API_BASE+'stock`);
+    const res = await fetch(`${API_BASE}?route=stock`);
     const data = await res.json();
     const tbody = document.getElementById('stock-table-body');
     tbody.innerHTML = '';
@@ -263,68 +255,69 @@ async function loadStock() {
       const tr = document.createElement('tr');
       const expDate = new Date(row.expiry_date);
       const diffDays = (expDate - today)/(1000*60*60*24);
-      if (diffDays <=7 && diffDays>=0) tr.classList.add('near-expiry');
+      if(diffDays<=7 && diffDays>=0) tr.classList.add('near-expiry');
       tr.innerHTML = `<td>${row.name}</td>
                       <td>${Number(row.price).toFixed(2)}</td>
                       <td>${row.expiry_date}</td>
                       <td>${row.quantity}</td>`;
       tbody.appendChild(tr);
     });
-  } catch(e){console.error(e);}
+  } catch(err){console.error(err);}
 }
 
 // Add stock
-document.getElementById('stock-add-btn').addEventListener('click', async ()=>{
-  const name=document.getElementById('stock-name').value.trim();
-  const price=parseFloat(document.getElementById('stock-price').value);
-  const expiry=document.getElementById('stock-expiry').value;
-  const qty=parseInt(document.getElementById('stock-qty').value);
-  const msgEl=document.getElementById('stock-msg'); msgEl.textContent='';
-  if(!name||!price||!expiry||!qty){msgEl.textContent='Fill all fields';return;}
+document.getElementById('stock-add-btn').addEventListener('click', async () => {
+  const name = document.getElementById('stock-name').value.trim();
+  const price = parseFloat(document.getElementById('stock-price').value);
+  const expiry = document.getElementById('stock-expiry').value;
+  const qty = parseInt(document.getElementById('stock-qty').value);
+  const msgEl = document.getElementById('stock-msg'); msgEl.textContent='';
+  if(!name || !price || !expiry || !qty){msgEl.textContent='Fill all fields'; return;}
   try{
-    const res=await fetch(API_BASE+'stock`,{
+    const res = await fetch(`${API_BASE}?route=stock`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name,price,expiry_date:expiry,quantity:qty})
+      body: JSON.stringify({name, price, expiry_date:expiry, quantity:qty})
     });
-    const data=await res.json();
-    if(res.ok){msgEl.textContent='Stock saved';
+    const data = await res.json();
+    if(res.ok){
+      msgEl.textContent='Stock saved';
       document.getElementById('stock-name').value='';
       document.getElementById('stock-price').value='';
       document.getElementById('stock-expiry').value='';
       document.getElementById('stock-qty').value='';
       loadStock();
-    } else msgEl.textContent=data.error||'Error saving stock';
-  } catch(err){console.error(err);msgEl.textContent='Error saving stock';}
+    } else msgEl.textContent = data.error || 'Error saving stock';
+  } catch(err){console.error(err); msgEl.textContent='Error saving stock';}
 });
 
-// --- Expired ---
+// --- EXPIRED ---
 async function loadExpired(){
   try{
-    const res=await fetch(API_BASE+'expired`);
-    const data=await res.json();
-    const tbody=document.getElementById('expired-table-body'); tbody.innerHTML='';
+    const res = await fetch(`${API_BASE}?route=expired`);
+    const data = await res.json();
+    const tbody = document.getElementById('expired-table-body'); tbody.innerHTML='';
     data.forEach(row=>{
-      const tr=document.createElement('tr'); tr.classList.add('expired');
-      tr.innerHTML=`<td>${row.name}</td>
-                    <td>${Number(row.price).toFixed(2)}</td>
-                    <td>${row.expiry_date}</td>
-                    <td>${row.expired_date}</td>
-                    <td>${row.quantity}</td>`;
+      const tr = document.createElement('tr'); tr.classList.add('expired');
+      tr.innerHTML = `<td>${row.name}</td>
+                      <td>${Number(row.price).toFixed(2)}</td>
+                      <td>${row.expiry_date}</td>
+                      <td>${row.expired_date}</td>
+                      <td>${row.quantity}</td>`;
       tbody.appendChild(tr);
     });
-  } catch(e){console.error(e);}
+  } catch(err){console.error(err);}
 }
 
-// --- Sale products ---
+// --- SALE PRODUCTS ---
 let saleProducts=[];
 async function loadSaleProducts(){
   try{
-    const res=await fetch(API_BASE+'sale-products`);
-    saleProducts=await res.json();
+    const res = await fetch(`${API_BASE}?route=sale-products`);
+    saleProducts = await res.json();
     document.getElementById('sale-items-body').innerHTML='';
     recalcTotals();
-  }catch(e){console.error(e);}
+  } catch(err){console.error(err);}
 }
 
 function recalcTotals(){
@@ -338,7 +331,7 @@ function recalcTotals(){
   });
   document.getElementById('sale-total').textContent=total.toFixed(2);
   const paid=parseFloat(document.getElementById('sale-paid').value)||0;
-  let remaining=total-paid; if(remaining<0){document.getElementById('sale-paid').value=total.toFixed(2);remaining=0;}
+  let remaining = total-paid; if(remaining<0){document.getElementById('sale-paid').value=total.toFixed(2); remaining=0;}
   document.getElementById('sale-remaining').textContent=remaining.toFixed(2);
 }
 
@@ -346,41 +339,42 @@ function recalcTotals(){
 document.getElementById('sale-add-item').addEventListener('click',()=>{
   const tbody=document.getElementById('sale-items-body');
   const tr=document.createElement('tr');
-  const options=saleProducts.map(p=>`<option value="${p.id}">${p.name}|₹${p.price}|Exp:${p.expiry_date}|Stock:${p.quantity}</option>`).join('');
-  tr.innerHTML=`<td><select class="sale-product"><option value="">Select...</option>${options}</select></td>
-                <td class="sale-price">0</td>
-                <td class="sale-expiry"></td>
-                <td><input class="sale-qty" type="number" min="1" value="1"></td>
-                <td class="sale-line-total">0</td>
-                <td><button class="sale-remove">X</button></td>`;
+  const options = saleProducts.map(p=>`<option value="${p.id}">${p.name}|₹${p.price}|Exp:${p.expiry_date}|Stock:${p.quantity}</option>`).join('');
+  tr.innerHTML = `<td><select class="sale-product"><option value="">Select...</option>${options}</select></td>
+                  <td class="sale-price">0</td>
+                  <td class="sale-expiry"></td>
+                  <td><input class="sale-qty" type="number" min="1" value="1"></td>
+                  <td class="sale-line-total">0</td>
+                  <td><button class="sale-remove">X</button></td>`;
   tbody.appendChild(tr);
 
-  const sel=tr.querySelector('.sale-product');
-  const qtyInput=tr.querySelector('.sale-qty');
+  const sel = tr.querySelector('.sale-product');
+  const qtyInput = tr.querySelector('.sale-qty');
 
-  sel.addEventListener('change',()=>{
-    const id=parseInt(sel.value);
-    const product=saleProducts.find(p=>p.id===id);
-    if(product){tr.querySelector('.sale-price').textContent=Number(product.price).toFixed(2);
+  sel.addEventListener('change', ()=>{
+    const id = parseInt(sel.value);
+    const product = saleProducts.find(p=>p.id===id);
+    if(product){
+      tr.querySelector('.sale-price').textContent=Number(product.price).toFixed(2);
       tr.querySelector('.sale-expiry').textContent=product.expiry_date;
-      if(parseInt(qtyInput.value)>product.quantity) qtyInput.value=product.quantity;
-    } else {tr.querySelector('.sale-price').textContent='0';tr.querySelector('.sale-expiry').textContent='';}
+      if(parseInt(qtyInput.value)>product.quantity) qtyInput.value = product.quantity;
+    } else { tr.querySelector('.sale-price').textContent='0'; tr.querySelector('.sale-expiry').textContent=''; }
     recalcTotals();
   });
 
-  qtyInput.addEventListener('input',()=>{
-    const id=parseInt(sel.value);
-    const product=saleProducts.find(p=>p.id===id);
+  qtyInput.addEventListener('input', ()=>{
+    const id = parseInt(sel.value);
+    const product = saleProducts.find(p=>p.id===id);
     let qty=parseInt(qtyInput.value)||0;
-    if(product&&qty>product.quantity) qty=product.quantity;
+    if(product && qty>product.quantity) qty=product.quantity;
     if(qty<1) qty=1; qtyInput.value=qty;
     recalcTotals();
   });
 
-  tr.querySelector('.sale-remove').addEventListener('click',()=>{tr.remove();recalcTotals();});
+  tr.querySelector('.sale-remove').addEventListener('click',()=>{tr.remove(); recalcTotals();});
 });
 
-document.getElementById('sale-paid').addEventListener('input',recalcTotals);
+document.getElementById('sale-paid').addEventListener('input', recalcTotals);
 
 // Save sale
 document.getElementById('sale-save').addEventListener('click', async ()=>{
@@ -390,8 +384,8 @@ document.getElementById('sale-save').addEventListener('click', async ()=>{
   const total=parseFloat(document.getElementById('sale-total').textContent)||0;
   let paid=parseFloat(document.getElementById('sale-paid').value)||0;
   if(total<=0){msgEl.textContent='Add at least one item'; return;}
-  if(paid>total){paid=total;document.getElementById('sale-paid').value=total.toFixed(2);}
-  if(paymentType==='BORROW'&&!customer){msgEl.textContent='Customer required for borrow'; return;}
+  if(paid>total){paid=total; document.getElementById('sale-paid').value=total.toFixed(2);}
+  if(paymentType==='BORROW' && !customer){msgEl.textContent='Customer required for borrow'; return;}
 
   const items=[];
   let valid=true;
@@ -403,68 +397,69 @@ document.getElementById('sale-save').addEventListener('click', async ()=>{
     if(!productId||price<=0||qty<=0) valid=false;
     items.push({product_id:productId,price,quantity:qty});
   });
-  if(!valid||items.length===0){msgEl.textContent='Invalid items';return;}
+  if(!valid || items.length===0){msgEl.textContent='Invalid items'; return;}
 
   try{
-    const res=await fetch(API_BASE+'sales`,{
+    const res=await fetch(`${API_BASE}?route=sales`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({customer_name:customer||null,payment_type:paymentType,total_amount:total,paid_amount:paid,items})
+      body:JSON.stringify({customer_name:customer||null, payment_type:paymentType, total_amount:total, paid_amount:paid, items})
     });
     const data=await res.json();
-    if(res.ok){msgEl.textContent='Sale saved';document.getElementById('sale-customer').value='';document.getElementById('sale-paid').value='0';document.getElementById('sale-items-body').innerHTML='';recalcTotals();loadSaleProducts();loadDashboard();}
-    else msgEl.textContent=data.error||'Error saving sale';
-  }catch(err){console.error(err);msgEl.textContent='Error saving sale';}
+    if(res.ok){msgEl.textContent='Sale saved'; document.getElementById('sale-customer').value=''; document.getElementById('sale-items-body').innerHTML=''; document.getElementById('sale-paid').value='0'; recalcTotals(); loadStock(); loadDashboard(); loadBills(); }
+    else msgEl.textContent = data.error || 'Error saving sale';
+  } catch(err){console.error(err); msgEl.textContent='Error saving sale';}
 });
 
-// --- Bills ---
+// --- SALES BILLS ---
 async function loadBills(){
   try{
-    const res=await fetch(API_BASE+'sales`);
-    const data=await res.json();
-    const tbody=document.getElementById('bills-table-body'); tbody.innerHTML='';
+    const res = await fetch(`${API_BASE}?route=sales`);
+    const data = await res.json();
+    const tbody = document.getElementById('bills-table-body'); tbody.innerHTML='';
     data.forEach(row=>{
       const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${row.date}</td><td>${row.customer_name||''}</td><td>${row.payment_type}</td><td>${Number(row.total_amount).toFixed(2)}</td><td>${Number(row.paid_amount).toFixed(2)}</td><td>${Number(row.borrow_amount||0).toFixed(2)}</td>`;
+      tr.innerHTML=`<td>${row.date}</td><td>${row.customer_name}</td><td>${row.payment_type}</td><td>${Number(row.total_amount).toFixed(2)}</td><td>${Number(row.paid_amount).toFixed(2)}</td><td>${Number(row.borrow_amount).toFixed(2)}</td>`;
       tbody.appendChild(tr);
     });
-  }catch(e){console.error(e);}
+  } catch(err){console.error(err);}
 }
 
-// --- Borrowers ---
+// --- BORROWERS ---
 async function loadBorrowers(){
   try{
-    const res=await fetch(API_BASE+'borrowers`);
-    const data=await res.json();
-    const tbody=document.getElementById('borrowers-table-body'); tbody.innerHTML='';
+    const res = await fetch(`${API_BASE}?route=borrowers`);
+    const data = await res.json();
+    const tbody = document.getElementById('borrowers-table-body'); tbody.innerHTML='';
     data.forEach(row=>{
       const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${row.name}</td><td>${Number(row.outstanding_amount).toFixed(2)}</td><td><input type="number" class="borrow-pay-amount" min="1" max="${row.outstanding_amount}" value="${row.outstanding_amount}"><button class="borrow-pay-btn">Pay</button></td>`;
-      const btn=tr.querySelector('.borrow-pay-btn');
-      const amtInput=tr.querySelector('.borrow-pay-amount');
-      btn.addEventListener('click', async ()=>{
-        const amt=parseFloat(amtInput.value)||0;
-        if(amt<=0||amt>row.outstanding_amount){alert('Invalid amount');return;}
+      tr.innerHTML = `<td>${row.name}</td>
+                      <td>${Number(row.outstanding_amount).toFixed(2)}</td>
+                      <td><input type="number" min="1" class="borrow-pay" value="1"><button class="borrow-btn">Pay</button></td>`;
+      tbody.appendChild(tr);
+
+      const payBtn = tr.querySelector('.borrow-btn');
+      const payInput = tr.querySelector('.borrow-pay');
+      payBtn.addEventListener('click', async ()=>{
+        let amount=parseFloat(payInput.value)||0;
+        if(amount>row.outstanding_amount) amount=row.outstanding_amount;
+        if(amount<=0) return;
         try{
-          const res2=await fetch(API_BASE+'borrower-payments`,{
+          const r = await fetch(`${API_BASE}?route=borrower-payments`,{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({borrower_id:row.id,amount:amt})
+            body: JSON.stringify({borrower_id: row.id, amount})
           });
-          const data2=await res2.json();
-          if(res2.ok){alert('Payment saved');loadBorrowers();loadDashboard();}
-          else alert(data2.error||'Error saving payment');
-        }catch(e){console.error(e);alert('Failed to save payment');}
+          const d = await r.json();
+          if(r.ok){loadBorrowers(); loadDashboard();}
+        } catch(err){console.error(err);}
       });
-      tbody.appendChild(tr);
     });
-  }catch(e){console.error(e);}
+  } catch(err){console.error(err);}
 }
 
 // Initial load
-loadDashboard(); loadStock(); loadSaleProducts(); loadExpired(); loadBills(); loadBorrowers();
+loadDashboard();
 </script>
 </body>
 </html>
-
-
