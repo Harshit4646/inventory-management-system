@@ -162,63 +162,64 @@ app.all("/api/server", async (req, res) => {
 
     /* SALES SAVE */
     if (route === "sales" && req.method === "POST") {
-      const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
+  const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
 
-      let borrow_amount =
-        payment_type === "BORROW" ? total_amount - paid_amount : 0;
+  let borrow_amount =
+    payment_type === "BORROW" ? total_amount - paid_amount : 0;
 
-      await sql.begin(async tx => {
-        const [sale] = await tx`
-          INSERT INTO sales (sale_date,customer_name,payment_type,total_amount,paid_amount,borrow_amount)
-          VALUES (NOW(),${customer_name},${payment_type},${total_amount},${paid_amount},${borrow_amount})
-          RETURNING id
-        `;
+  await sql.transaction(async tx => {
+    const [sale] = await tx`
+      INSERT INTO sales
+      (sale_date,customer_name,payment_type,total_amount,paid_amount,borrow_amount)
+      VALUES (NOW(),${customer_name},${payment_type},${total_amount},${paid_amount},${borrow_amount})
+      RETURNING id
+    `;
 
-        for (const it of items) {
-          const [stock] = await tx`
-            SELECT quantity FROM stock WHERE product_id=${it.product_id}
-          `;
+    for (const it of items) {
+      const [stock] = await tx`
+        SELECT quantity FROM stock WHERE product_id=${it.product_id}
+      `;
 
-          if (!stock || stock.quantity < it.quantity) {
-            throw new Error("Insufficient stock");
-          }
+      if (!stock || stock.quantity < it.quantity) {
+        throw new Error("Insufficient stock");
+      }
 
-          await tx`
-            UPDATE stock
-            SET quantity = quantity - ${it.quantity}
-            WHERE product_id = ${it.product_id}
-          `;
+      await tx`
+        UPDATE stock
+        SET quantity = quantity - ${it.quantity}
+        WHERE product_id = ${it.product_id}
+      `;
 
-          await tx`
-            INSERT INTO sale_items
-            (sale_id,product_id,price,quantity,line_total)
-            VALUES
-            (${sale.id},${it.product_id},${it.price},${it.quantity},${it.price * it.quantity})
-          `;
-        }
-
-        if (borrow_amount > 0) {
-          const b = await tx`
-            SELECT id FROM borrowers WHERE name=${customer_name}
-          `;
-
-          if (!b.length) {
-            await tx`
-              INSERT INTO borrowers (name,outstanding_amount)
-              VALUES (${customer_name},${borrow_amount})
-            `;
-          } else {
-            await tx`
-              UPDATE borrowers
-              SET outstanding_amount=outstanding_amount+${borrow_amount}
-              WHERE id=${b[0].id}
-            `;
-          }
-        }
-      });
-
-      return res.json({ success: true });
+      await tx`
+        INSERT INTO sale_items
+        (sale_id,product_id,price,quantity,line_total)
+        VALUES
+        (${sale.id},${it.product_id},${it.price},${it.quantity},${it.price * it.quantity})
+      `;
     }
+
+    if (borrow_amount > 0) {
+      const b = await tx`
+        SELECT id FROM borrowers WHERE name=${customer_name}
+      `;
+
+      if (!b.length) {
+        await tx`
+          INSERT INTO borrowers (name,outstanding_amount)
+          VALUES (${customer_name},${borrow_amount})
+        `;
+      } else {
+        await tx`
+          UPDATE borrowers
+          SET outstanding_amount = outstanding_amount + ${borrow_amount}
+          WHERE id = ${b[0].id}
+        `;
+      }
+    }
+  });
+
+  return res.json({ success: true });
+}
 
     /* BORROWERS */
     if (route === "borrowers") {
@@ -230,22 +231,23 @@ app.all("/api/server", async (req, res) => {
     }
 
     if (route === "borrower-payments") {
-      const { borrower_id, amount } = req.body;
+  const { borrower_id, amount } = req.body;
 
-      await sql.begin(async tx => {
-        await tx`
-          INSERT INTO borrower_payments (borrower_id,amount_paid)
-          VALUES (${borrower_id},${amount})
-        `;
-        await tx`
-          UPDATE borrowers
-          SET outstanding_amount=outstanding_amount-${amount}
-          WHERE id=${borrower_id}
-        `;
-      });
+  await sql.transaction(async tx => {
+    await tx`
+      INSERT INTO borrower_payments (borrower_id,amount_paid)
+      VALUES (${borrower_id},${amount})
+    `;
 
-      return res.json({ success: true });
-    }
+    await tx`
+      UPDATE borrowers
+      SET outstanding_amount = outstanding_amount - ${amount}
+      WHERE id = ${borrower_id}
+    `;
+  });
+
+  return res.json({ success: true });
+}
 
     return res.status(404).json({ error: "Invalid route" });
   } catch (e) {
@@ -255,3 +257,4 @@ app.all("/api/server", async (req, res) => {
 });
 
 export default app;
+
