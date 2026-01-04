@@ -1,13 +1,8 @@
 // api/server.js
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
 import postgres from "postgres";
+import dotenv from "dotenv";
 
 dotenv.config();
-const app = express();
-app.use(cors());
-app.use(express.json());
 
 // Postgres connection (Vercel ready)
 const sql = postgres(process.env.DATABASE_URL, {
@@ -41,12 +36,12 @@ async function moveExpiredStock() {
   }
 }
 
-// Single API endpoint
-app.all("/api", async (req, res) => {
+// Vercel Serverless Function
+export default async function handler(req, res) {
   const route = req.query.route;
+
   try {
     await moveExpiredStock();
-
     const today = new Date().toISOString().slice(0, 10);
 
     /* ---------------- DASHBOARD ---------------- */
@@ -78,7 +73,7 @@ app.all("/api", async (req, res) => {
         FROM borrower_payments WHERE payment_date::date = ${today}
       `;
 
-      return res.json({
+      return res.status(200).json({
         daily_total,
         monthly_total,
         daily_cash,
@@ -98,13 +93,13 @@ app.all("/api", async (req, res) => {
           WHERE s.quantity > 0
           ORDER BY p.name
         `;
-        return res.json(rows);
+        return res.status(200).json(rows);
       }
+
       if (req.method === "POST") {
         const { name, price, expiry_date, quantity } = req.body;
-        if (!name || !price || !expiry_date || !quantity) {
+        if (!name || !price || !expiry_date || !quantity)
           return res.status(400).json({ error: "Missing fields" });
-        }
 
         await sql.begin(async sql => {
           const [product] = await sql`
@@ -123,7 +118,7 @@ app.all("/api", async (req, res) => {
           }
         });
 
-        return res.json({ success: true });
+        return res.status(200).json({ success: true });
       }
     }
 
@@ -135,7 +130,7 @@ app.all("/api", async (req, res) => {
         JOIN products p ON p.id = e.product_id
         ORDER BY e.expired_date DESC
       `;
-      return res.json(rows);
+      return res.status(200).json(rows);
     }
 
     /* ---------------- SALE PRODUCTS ---------------- */
@@ -147,7 +142,7 @@ app.all("/api", async (req, res) => {
         WHERE p.expiry_date >= ${today} AND s.quantity > 0
         ORDER BY p.name
       `;
-      return res.json(rows);
+      return res.status(200).json(rows);
     }
 
     /* ---------------- SALES ---------------- */
@@ -157,8 +152,9 @@ app.all("/api", async (req, res) => {
           SELECT sale_date::date AS date, customer_name, payment_type, total_amount, paid_amount, borrow_amount
           FROM sales ORDER BY sale_date DESC
         `;
-        return res.json(rows);
+        return res.status(200).json(rows);
       }
+
       if (req.method === "POST") {
         const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
         if (!items || items.length === 0) return res.status(400).json({ error: "No sale items" });
@@ -190,7 +186,7 @@ app.all("/api", async (req, res) => {
           }
         });
 
-        return res.json({ success: true });
+        return res.status(200).json({ success: true });
       }
     }
 
@@ -202,9 +198,10 @@ app.all("/api", async (req, res) => {
         WHERE outstanding_amount > 0
         ORDER BY name
       `;
-      return res.json(rows);
+      return res.status(200).json(rows);
     }
 
+    /* ---------------- BORROWER PAYMENTS ---------------- */
     if (route === "borrower-payments" && req.method === "POST") {
       const { borrower_id, amount } = req.body;
       if (!borrower_id || !amount) return res.status(400).json({ error: "Missing fields" });
@@ -214,7 +211,7 @@ app.all("/api", async (req, res) => {
         await sql`UPDATE borrowers SET outstanding_amount = outstanding_amount - ${amount} WHERE id = ${borrower_id}`;
       });
 
-      return res.json({ success: true });
+      return res.status(200).json({ success: true });
     }
 
     return res.status(404).json({ error: "Invalid route" });
@@ -222,6 +219,4 @@ app.all("/api", async (req, res) => {
     console.error("Server error:", err);
     return res.status(500).json({ error: err.message });
   }
-});
-
-export default app;
+}
