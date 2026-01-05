@@ -12,21 +12,33 @@
     section { display: none; }
     section.active { display: block; }
     h2 { margin-top: 0; }
+    h3 { color: #666; }
     table { border-collapse: collapse; width: 100%; margin-top: 10px; background: #fff; }
-    th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; }
+    th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; text-align: left; }
     th { background: #eee; }
     .near-expiry { background: #fff3cd; }
     .expired { background: #f8d7da; }
     .form-row { margin-bottom: 8px; }
-    label { display: inline-block; width: 140px; }
-    input, select { padding: 5px; font-size: 14px; }
-    button { padding: 6px 12px; margin: 4px 0; cursor: pointer; }
-    .pill { display: inline-block; padding: 4px 8px; border-radius: 4px; margin-right: 6px; }
-    .pill.cash { background: #d4edda; }
-    .pill.online { background: #d1ecf1; }
-    .pill.borrow { background: #f8d7da; }
-    .card { background: #fff; padding: 10px 15px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 0 2px rgba(0,0,0,0.1); display: inline-block; min-width: 180px; }
-    .flex { display: flex; flex-wrap: wrap; gap: 10px; }
+    label { display: inline-block; width: 140px; font-weight: bold; }
+    input, select { padding: 5px; font-size: 14px; border: 1px solid #ddd; border-radius: 3px; }
+    button { padding: 6px 12px; margin: 4px 2px; cursor: pointer; border: none; border-radius: 3px; }
+    button:hover { opacity: 0.8; }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-success { background: #28a745; color: white; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn-warning { background: #ffc107; color: #212529; }
+    .pill { display: inline-block; padding: 4px 8px; border-radius: 4px; margin-right: 6px; font-size: 12px; font-weight: bold; }
+    .pill.cash { background: #d4edda; color: #155724; }
+    .pill.online { background: #d1ecf1; color: #0c5460; }
+    .pill.borrow { background: #f8d7da; color: #721c24; }
+    .card { background: #fff; padding: 15px; margin: 10px 10px 10px 0; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-width: 180px; }
+    .flex { display: flex; flex-wrap: wrap; gap: 15px; }
+    .msg { padding: 8px; margin: 10px 0; border-radius: 4px; }
+    .msg.success { background: #d4edda; color: #155724; }
+    .msg.error { background: #f8d7da; color: #721c24; }
+    .actions { white-space: nowrap; }
+    .edit-btn, .delete-btn { font-size: 12px; padding: 4px 8px; margin: 0 2px; }
+    .bill-detail { background: #e9ecef; padding: 15px; margin: 10px 0; border-radius: 6px; }
   </style>
 </head>
 <body>
@@ -35,7 +47,7 @@
     <a href="#" data-section="dashboard" class="active">Dashboard</a>
     <a href="#" data-section="stock">Stock</a>
     <a href="#" data-section="expired">Expired</a>
-    <a href="#" data-section="sales">Sales</a>
+    <a href="#" data-section="sales">New Sale</a>
     <a href="#" data-section="bills">Sales Bills</a>
     <a href="#" data-section="borrowers">Borrowers</a>
   </nav>
@@ -79,11 +91,11 @@
     <div>
       <div class="form-row">
         <label>Product name:</label>
-        <input id="stock-name" type="text">
+        <input id="stock-name" type="text" placeholder="Enter product name">
       </div>
       <div class="form-row">
-        <label>Price:</label>
-        <input id="stock-price" type="number" step="0.01">
+        <label>Price (₹):</label>
+        <input id="stock-price" type="number" step="0.01" min="0">
       </div>
       <div class="form-row">
         <label>Expiry date:</label>
@@ -91,9 +103,9 @@
       </div>
       <div class="form-row">
         <label>Quantity:</label>
-        <input id="stock-qty" type="number">
+        <input id="stock-qty" type="number" min="1">
       </div>
-      <button id="stock-add-btn">Add / Increase Stock</button>
+      <button id="stock-add-btn" class="btn-primary">Add / Increase Stock</button>
       <div id="stock-msg"></div>
     </div>
     <h3>Current Stock</h3>
@@ -127,12 +139,12 @@
     </table>
   </section>
 
-  <!-- SALES -->
+  <!-- NEW SALE -->
   <section id="sales">
-    <h2>Sales</h2>
+    <h2>New Sale</h2>
     <div class="form-row">
       <label>Customer name:</label>
-      <input id="sale-customer" type="text">
+      <input id="sale-customer" type="text" placeholder="Customer name (required for BORROW)">
     </div>
     <div class="form-row">
       <label>Payment type:</label>
@@ -143,7 +155,7 @@
       </select>
     </div>
     <h3>Items</h3>
-    <button id="sale-add-item">Add Item</button>
+    <button id="sale-add-item" class="btn-success">Add Item</button>
     <table>
       <thead>
         <tr>
@@ -159,23 +171,32 @@
     </table>
     <div class="form-row">
       <label>Total:</label>
-      <span id="sale-total">0</span>
+      <span id="sale-total" style="font-size: 18px; font-weight: bold;">₹0.00</span>
     </div>
     <div class="form-row">
       <label>Paid amount:</label>
-      <input id="sale-paid" type="number" step="0.01" value="0">
+      <input id="sale-paid" type="number" step="0.01" value="0" min="0">
     </div>
     <div class="form-row">
       <label>Remaining:</label>
-      <span id="sale-remaining">0</span>
+      <span id="sale-remaining" style="color: #dc3545; font-weight: bold;">₹0.00</span>
     </div>
-    <button id="sale-save">Save Sale</button>
+    <button id="sale-save" class="btn-primary">Save Sale</button>
     <div id="sale-msg"></div>
   </section>
 
   <!-- SALES BILLS -->
   <section id="bills">
     <h2>Sales Bills</h2>
+    <div id="bill-detail-container" style="display: none;">
+      <h3>Bill Details</h3>
+      <div id="bill-detail" class="bill-detail"></div>
+      <div style="margin-top: 10px;">
+        <button id="edit-bill-btn" class="btn-warning">Edit Bill</button>
+        <button id="delete-bill-btn" class="btn-danger">Delete Bill</button>
+        <button id="close-bill-detail" class="btn-secondary">Close</button>
+      </div>
+    </div>
     <table>
       <thead>
         <tr>
@@ -185,6 +206,7 @@
           <th>Total</th>
           <th>Paid</th>
           <th>Borrow</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody id="bills-table-body"></tbody>
@@ -199,7 +221,8 @@
         <tr>
           <th>Name</th>
           <th>Outstanding</th>
-          <th>Pay</th>
+          <th>Last Updated</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody id="borrowers-table-body"></tbody>
@@ -210,236 +233,412 @@
 <script>
 const API_BASE = '/api/server';
 
+// --- MESSAGE HELPER ---
+function showMsg(el, msg, type = 'success') {
+  el.innerHTML = `<div class="msg ${type}">${msg}</div>`;
+  setTimeout(() => el.innerHTML = '', 5000);
+}
+
 // --- NAVIGATION ---
-document.querySelectorAll('nav a').forEach(a=>{
-  a.addEventListener('click', e=>{
+document.querySelectorAll('nav a').forEach(a => {
+  a.addEventListener('click', e => {
     e.preventDefault();
     const sec = a.dataset.section;
-    document.querySelectorAll('nav a').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('nav a').forEach(x => x.classList.remove('active'));
     a.classList.add('active');
-    document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('main section').forEach(s => s.classList.remove('active'));
     document.getElementById(sec).classList.add('active');
 
-    if(sec==='dashboard') loadDashboard();
-    if(sec==='stock') loadStock();
-    if(sec==='expired') loadExpired();
-    if(sec==='sales') loadSaleProducts();
-    if(sec==='bills') loadBills();
-    if(sec==='borrowers') loadBorrowers();
+    if (sec === 'dashboard') loadDashboard();
+    if (sec === 'stock') loadStock();
+    if (sec === 'expired') loadExpired();
+    if (sec === 'sales') loadSaleProducts();
+    if (sec === 'bills') loadBills();
+    if (sec === 'borrowers') loadBorrowers();
   });
 });
 
 // --- FETCH WRAPPER ---
-async function fetchJSON(url, options){
-  try{
+async function fetchJSON(url, options = {}) {
+  try {
     const res = await fetch(url, options);
-    if(!res.ok){
+    if (!res.ok) {
       const text = await res.text();
       console.error(`HTTP ${res.status}: ${text}`);
       return null;
     }
     return await res.json();
-  } catch(err){
+  } catch (err) {
     console.error('Fetch error:', err);
     return null;
   }
 }
 
 // --- DASHBOARD ---
-async function loadDashboard(){
+async function loadDashboard() {
   const data = await fetchJSON(`${API_BASE}?route=dashboard`);
-  if(!data) return;
-  document.getElementById('dash-daily-total').textContent=Number(data.daily_total).toFixed(2);
-  document.getElementById('dash-monthly-total').textContent=Number(data.monthly_total).toFixed(2);
-  document.getElementById('dash-daily-cash').textContent=Number(data.daily_cash).toFixed(2);
-  document.getElementById('dash-daily-online').textContent=Number(data.daily_online).toFixed(2);
-  document.getElementById('dash-daily-borrow').textContent=Number(data.daily_borrow).toFixed(2);
-  document.getElementById('dash-borrower-payments').textContent=Number(data.borrower_payments).toFixed(2);
+  if (!data) return;
+  document.getElementById('dash-daily-total').textContent = Number(data.daily_total).toFixed(2);
+  document.getElementById('dash-monthly-total').textContent = Number(data.monthly_total).toFixed(2);
+  document.getElementById('dash-daily-cash').textContent = Number(data.daily_cash).toFixed(2);
+  document.getElementById('dash-daily-online').textContent = Number(data.daily_online).toFixed(2);
+  document.getElementById('dash-daily-borrow').textContent = Number(data.daily_borrow).toFixed(2);
+  document.getElementById('dash-borrower-payments').textContent = Number(data.borrower_payments).toFixed(2);
 }
 
 // --- STOCK ---
-async function loadStock(){
+async function loadStock() {
   const data = await fetchJSON(`${API_BASE}?route=stock`);
-  if(!data) return;
+  if (!data) return;
   const tbody = document.getElementById('stock-table-body');
-  tbody.innerHTML='';
+  tbody.innerHTML = '';
   const today = new Date();
-  data.forEach(row=>{
-    const tr=document.createElement('tr');
+  data.forEach(row => {
+    const tr = document.createElement('tr');
     const exp = new Date(row.expiry_date);
-    if((exp-today)/(1000*60*60*24)<=7) tr.classList.add('near-expiry');
-    tr.innerHTML=`<td>${row.name}</td><td>${Number(row.price).toFixed(2)}</td><td>${row.expiry_date}</td><td>${row.quantity}</td>`;
+    if ((exp - today) / (1000 * 60 * 60 * 24) <= 7) tr.classList.add('near-expiry');
+    tr.innerHTML = `<td>${row.name}</td><td>₹${Number(row.price).toFixed(2)}</td><td>${row.expiry_date}</td><td>${row.quantity}</td>`;
     tbody.appendChild(tr);
   });
 }
 
-document.getElementById('stock-add-btn').addEventListener('click', async ()=>{
-  const name=document.getElementById('stock-name').value.trim();
-  const price=parseFloat(document.getElementById('stock-price').value);
-  const expiry=document.getElementById('stock-expiry').value;
-  const qty=parseInt(document.getElementById('stock-qty').value);
-  const msgEl=document.getElementById('stock-msg'); msgEl.textContent='';
-  if(!name||!price||!expiry||!qty){msgEl.textContent='Fill all fields'; return;}
-  const data = await fetchJSON(`${API_BASE}?route=stock`,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({name, price, expiry_date:expiry, quantity:qty})
+document.getElementById('stock-add-btn').addEventListener('click', async () => {
+  const name = document.getElementById('stock-name').value.trim();
+  const price = parseFloat(document.getElementById('stock-price').value);
+  const expiry = document.getElementById('stock-expiry').value;
+  const qty = parseInt(document.getElementById('stock-qty').value);
+  const msgEl = document.getElementById('stock-msg');
+  
+  if (!name || !price || !expiry || !qty) {
+    showMsg(msgEl, 'Fill all fields', 'error');
+    return;
+  }
+  
+  const data = await fetchJSON(`${API_BASE}?route=stock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, price, expiry_date: expiry, quantity: qty })
   });
-  if(data){msgEl.textContent='Stock saved'; document.getElementById('stock-name').value=''; document.getElementById('stock-price').value=''; document.getElementById('stock-expiry').value=''; document.getElementById('stock-qty').value=''; loadStock();}
-  else msgEl.textContent='Error saving stock';
+  
+  if (data && data.success) {
+    showMsg(msgEl, 'Stock saved successfully');
+    document.getElementById('stock-name').value = '';
+    document.getElementById('stock-price').value = '';
+    document.getElementById('stock-expiry').value = '';
+    document.getElementById('stock-qty').value = '';
+    loadStock();
+  } else {
+    showMsg(msgEl, 'Error saving stock', 'error');
+  }
 });
 
 // --- EXPIRED ---
-async function loadExpired(){
+async function loadExpired() {
   const data = await fetchJSON(`${API_BASE}?route=expired`);
-  if(!data) return;
-  const tbody = document.getElementById('expired-table-body'); tbody.innerHTML='';
-  data.forEach(row=>{
-    const tr=document.createElement('tr'); tr.classList.add('expired');
-    tr.innerHTML=`<td>${row.name}</td><td>${Number(row.price).toFixed(2)}</td><td>${row.expiry_date}</td><td>${row.expired_date}</td><td>${row.quantity}</td>`;
+  if (!data) return;
+  const tbody = document.getElementById('expired-table-body');
+  tbody.innerHTML = '';
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.classList.add('expired');
+    tr.innerHTML = `<td>${row.name}</td><td>₹${Number(row.price).toFixed(2)}</td><td>${row.expiry_date}</td><td>${row.expired_date}</td><td>${row.quantity}</td>`;
     tbody.appendChild(tr);
   });
 }
 
-// --- SALES PRODUCTS ---
-let saleProducts=[];
-async function loadSaleProducts(){
+// --- SALES PRODUCTS & NEW SALE ---
+let saleProducts = [];
+async function loadSaleProducts() {
   const data = await fetchJSON(`${API_BASE}?route=sale-products`);
-  if(!data) return;
+  if (!data) return;
   saleProducts = data;
-  document.getElementById('sale-items-body').innerHTML='';
+  document.getElementById('sale-items-body').innerHTML = '';
   recalcTotals();
 }
 
-// --- RE-CALCULATE TOTALS ---
-function recalcTotals(){
-  let total=0;
-  document.querySelectorAll('#sale-items-body tr').forEach(tr=>{
-    const price=parseFloat(tr.querySelector('.sale-price')?.textContent)||0;
-    const qty=parseInt(tr.querySelector('.sale-qty')?.value)||0;
-    const line=price*qty;
-    tr.querySelector('.sale-line-total').textContent=line.toFixed(2);
-    total+=line;
+function recalcTotals() {
+  let total = 0;
+  document.querySelectorAll('#sale-items-body tr').forEach(tr => {
+    const price = parseFloat(tr.querySelector('.sale-price')?.textContent.replace('₹', '')) || 0;
+    const qty = parseInt(tr.querySelector('.sale-qty')?.value) || 0;
+    const line = price * qty;
+    tr.querySelector('.sale-line-total').textContent = `₹${line.toFixed(2)}`;
+    total += line;
   });
-  document.getElementById('sale-total').textContent=total.toFixed(2);
-  const paid=parseFloat(document.getElementById('sale-paid').value)||0;
-  let remaining = total-paid;
-  if(remaining<0){document.getElementById('sale-paid').value=total.toFixed(2); remaining=0;}
-  document.getElementById('sale-remaining').textContent=remaining.toFixed(2);
+  document.getElementById('sale-total').textContent = `₹${total.toFixed(2)}`;
+  
+  const paid = parseFloat(document.getElementById('sale-paid').value) || 0;
+  let remaining = total - paid;
+  if (remaining < 0) {
+    document.getElementById('sale-paid').value = total.toFixed(2);
+    remaining = 0;
+  }
+  document.getElementById('sale-remaining').textContent = `₹${remaining.toFixed(2)}`;
 }
 
-// --- ADD SALE ITEM ---
-document.getElementById('sale-add-item').addEventListener('click',()=>{
-  const tbody=document.getElementById('sale-items-body');
-  const tr=document.createElement('tr');
-  const options = saleProducts.map(p=>`<option value="${p.id}">${p.name}|₹${p.price}|Exp:${p.expiry_date}|Stock:${p.quantity}</option>`).join('');
-  tr.innerHTML = `<td><select class="sale-product"><option value="">Select...</option>${options}</select></td>
-                  <td class="sale-price">0</td>
-                  <td class="sale-expiry"></td>
-                  <td><input class="sale-qty" type="number" min="1" value="1"></td>
-                  <td class="sale-line-total">0</td>
-                  <td><button class="sale-remove">X</button></td>`;
+document.getElementById('sale-add-item').addEventListener('click', () => {
+  const tbody = document.getElementById('sale-items-body');
+  const tr = document.createElement('tr');
+  const options = saleProducts.map(p => 
+    `<option value="${p.id}">${p.name} | ₹${p.price} | Exp:${p.expiry_date} | Stock:${p.quantity}</option>`
+  ).join('');
+  
+  tr.innerHTML = `
+    <td><select class="sale-product"><option value="">Select...</option>${options}</select></td>
+    <td class="sale-price">₹0.00</td>
+    <td class="sale-expiry"></td>
+    <td><input class="sale-qty" type="number" min="1" value="1" style="width:60px"></td>
+    <td class="sale-line-total">₹0.00</td>
+    <td><button class="sale-remove btn-danger" style="font-size:12px;padding:2px 6px;">X</button></td>
+  `;
   tbody.appendChild(tr);
 
   const sel = tr.querySelector('.sale-product');
   const qtyInput = tr.querySelector('.sale-qty');
 
-  sel.addEventListener('change', ()=>{
+  sel.addEventListener('change', () => {
     const id = parseInt(sel.value);
-    const product = saleProducts.find(p=>p.id===id);
-    if(product){
-      tr.querySelector('.sale-price').textContent=Number(product.price).toFixed(2);
-      tr.querySelector('.sale-expiry').textContent=product.expiry_date;
-      if(parseInt(qtyInput.value)>product.quantity) qtyInput.value = product.quantity;
-    } else { tr.querySelector('.sale-price').textContent='0'; tr.querySelector('.sale-expiry').textContent=''; }
+    const product = saleProducts.find(p => p.id === id);
+    if (product) {
+      tr.querySelector('.sale-price').textContent = `₹${Number(product.price).toFixed(2)}`;
+      tr.querySelector('.sale-expiry').textContent = product.expiry_date;
+      const currentQty = parseInt(qtyInput.value);
+      if (currentQty > product.quantity) qtyInput.value = product.quantity;
+    } else {
+      tr.querySelector('.sale-price').textContent = '₹0.00';
+      tr.querySelector('.sale-expiry').textContent = '';
+    }
     recalcTotals();
   });
 
-  qtyInput.addEventListener('input', ()=>{
+  qtyInput.addEventListener('input', () => {
     const id = parseInt(sel.value);
-    const product = saleProducts.find(p=>p.id===id);
-    let qty=parseInt(qtyInput.value)||0;
-    if(product && qty>product.quantity) qty=product.quantity;
-    if(qty<1) qty=1; qtyInput.value=qty;
+    const product = saleProducts.find(p => p.id === id);
+    let qty = parseInt(qtyInput.value) || 0;
+    if (product && qty > product.quantity) qty = product.quantity;
+    if (qty < 1) qty = 1;
+    qtyInput.value = qty;
     recalcTotals();
   });
 
-  tr.querySelector('.sale-remove').addEventListener('click',()=>{tr.remove(); recalcTotals();});
+  tr.querySelector('.sale-remove').addEventListener('click', () => {
+    tr.remove();
+    recalcTotals();
+  });
 });
 
 document.getElementById('sale-paid').addEventListener('input', recalcTotals);
 
-// --- SAVE SALE ---
-document.getElementById('sale-save').addEventListener('click', async ()=>{
-  const msgEl=document.getElementById('sale-msg'); msgEl.textContent='';
-  const customer=document.getElementById('sale-customer').value.trim();
-  const paymentType=document.getElementById('sale-payment-type').value;
-  const total=parseFloat(document.getElementById('sale-total').textContent)||0;
-  let paid=parseFloat(document.getElementById('sale-paid').value)||0;
-  if(total<=0){msgEl.textContent='Add at least one item'; return;}
-  if(paid>total){paid=total; document.getElementById('sale-paid').value=total.toFixed(2);}
-  if(paymentType==='BORROW' && !customer){msgEl.textContent='Customer required for borrow'; return;}
+document.getElementById('sale-save').addEventListener('click', async () => {
+  const msgEl = document.getElementById('sale-msg');
+  const customer = document.getElementById('sale-customer').value.trim();
+  const paymentType = document.getElementById('sale-payment-type').value;
+  const total = parseFloat(document.getElementById('sale-total').textContent.replace('₹', '')) || 0;
+  let paid = parseFloat(document.getElementById('sale-paid').value) || 0;
 
-  const items=[];
-  let valid=true;
-  document.querySelectorAll('#sale-items-body tr').forEach(tr=>{
-    const sel=tr.querySelector('.sale-product');
-    const productId=parseInt(sel.value);
-    const price=parseFloat(tr.querySelector('.sale-price').textContent)||0;
-    const qty=parseInt(tr.querySelector('.sale-qty').value)||0;
-    if(!productId||price<=0||qty<=0) valid=false;
-    items.push({product_id:productId,price,quantity:qty});
-  });
-  if(!valid || items.length===0){msgEl.textContent='Invalid items'; return;}
+  if (total <= 0) {
+    showMsg(msgEl, 'Add at least one item', 'error');
+    return;
+  }
+  if (paid > total) {
+    paid = total;
+    document.getElementById('sale-paid').value = total.toFixed(2);
+  }
+  if (paymentType === 'BORROW' && !customer) {
+    showMsg(msgEl, 'Customer required for borrow', 'error');
+    return;
+  }
 
-  const data = await fetchJSON(`${API_BASE}?route=sales`,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({customer_name:customer||null, payment_type:paymentType, total_amount:total, paid_amount:paid, items})
+  const items = [];
+  let valid = true;
+  document.querySelectorAll('#sale-items-body tr').forEach(tr => {
+    const sel = tr.querySelector('.sale-product');
+    const productId = parseInt(sel.value);
+    const price = parseFloat(tr.querySelector('.sale-price').textContent.replace('₹', '')) || 0;
+    const qty = parseInt(tr.querySelector('.sale-qty').value) || 0;
+    if (!productId || price <= 0 || qty <= 0) valid = false;
+    items.push({ product_id: productId, price, quantity: qty });
   });
-  if(data){msgEl.textContent='Sale saved'; document.getElementById('sale-customer').value=''; document.getElementById('sale-items-body').innerHTML=''; document.getElementById('sale-paid').value='0'; recalcTotals(); loadStock(); loadDashboard(); loadBills(); }
-  else msgEl.textContent='Error saving sale';
+
+  if (!valid || items.length === 0) {
+    showMsg(msgEl, 'Invalid items', 'error');
+    return;
+  }
+
+  const data = await fetchJSON(`${API_BASE}?route=sales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ customer_name: customer || null, payment_type: paymentType, total_amount: total, paid_amount: paid, items })
+  });
+
+  if (data && data.success) {
+    showMsg(msgEl, 'Sale saved successfully');
+    document.getElementById('sale-customer').value = '';
+    document.getElementById('sale-items-body').innerHTML = '';
+    document.getElementById('sale-paid').value = '0';
+    recalcTotals();
+    loadStock();
+    loadDashboard();
+    loadBills();
+  } else {
+    showMsg(msgEl, 'Error saving sale', 'error');
+  }
 });
 
 // --- SALES BILLS ---
-async function loadBills(){
+let currentBillId = null;
+async function loadBills() {
   const data = await fetchJSON(`${API_BASE}?route=sales`);
-  if(!data) return;
-  const tbody=document.getElementById('bills-table-body'); tbody.innerHTML='';
-  data.forEach(row=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${row.date}</td><td>${row.customer||''}</td><td>${row.payment_type}</td><td>${Number(row.total_amount).toFixed(2)}</td><td>${Number(row.paid_amount).toFixed(2)}</td><td>${Number(row.borrow_amount||0).toFixed(2)}</td>`;
+  if (!data) return;
+  const tbody = document.getElementById('bills-table-body');
+  tbody.innerHTML = '';
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+    const pillClass = row.payment_type.toLowerCase();
+    tr.innerHTML = `
+      <td>${row.date}</td>
+      <td>${row.customer_name || ''}</td>
+      <td><span class="pill ${pillClass}">${row.payment_type}</span></td>
+      <td>₹${Number(row.total_amount).toFixed(2)}</td>
+      <td>₹${Number(row.paid_amount).toFixed(2)}</td>
+      <td>₹${Number(row.borrow_amount || 0).toFixed(2)}</td>
+      <td class="actions">
+        <button class="edit-btn btn-warning" data-sale-id="${row.id}">Edit</button>
+        <button class="view-btn btn-primary" data-sale-id="${row.id}" style="font-size:12px;padding:4px 8px;">View</button>
+      </td>
+    `;
     tbody.appendChild(tr);
   });
-}
 
-// --- BORROWERS ---
-async function loadBorrowers(){
-  const data = await fetchJSON(`${API_BASE}?route=borrowers`);
-  if(!data) return;
-  const tbody=document.getElementById('borrowers-table-body'); tbody.innerHTML='';
-  data.forEach(row=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${row.name}</td><td>${Number(row.outstanding_amount).toFixed(2)}</td><td><button class="pay-btn">Pay</button></td>`;
-    tbody.appendChild(tr);
-    const btn = tr.querySelector('.pay-btn');
-    btn.addEventListener('click', async ()=>{
-      const amt=prompt('Enter payment amount:',row.outstanding);
-      const numAmt=parseFloat(amt)||0;
-      if(numAmt<=0 || numAmt>row.outstanding) {alert('Invalid amount'); return;}
-      const res = await fetchJSON(`${API_BASE}?route=borrower-payments`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({borrower_id:row.id, amount:numAmt})
-      });
-      if(res){alert('Payment saved'); loadBorrowers(); loadDashboard(); loadBills();}
-      else alert('Error saving payment');
+  // Add event listeners for bill actions
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const saleId = e.target.dataset.saleId;
+      await showBillDetail(saleId);
+    });
+  });
+
+  document.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const saleId = e.target.dataset.saleId;
+      editBill(saleId);
     });
   });
 }
+
+async function showBillDetail(saleId) {
+  const data = await fetchJSON(`${API_BASE}?route=bill-detail&sale_id=${saleId}`);
+  if (!data) return;
+
+  currentBillId = saleId;
+  const container = document.getElementById('bill-detail-container');
+  const detailEl = document.getElementById('bill-detail');
+  
+  detailEl.innerHTML = `
+    <h4>Bill #${data.sale.id} - ${data.sale.sale_date}</h4>
+    <p><strong>Customer:</strong> ${data.sale.customer_name || 'Walk-in'}</p>
+    <p><strong>Payment Type:</strong> <span class="pill ${data.sale.payment_type.toLowerCase()}">${data.sale.payment_type}</span></p>
+    <p><strong>Total:</strong> ₹${Number(data.sale.total_amount).toFixed(2)}</p>
+    <p><strong>Paid:</strong> ₹${Number(data.sale.paid_amount).toFixed(2)}</p>
+    <p><strong>Balance:</strong> ₹${Number(data.sale.borrow_amount).toFixed(2)}</p>
+    <h5>Items:</h5>
+    <table style="width:100%; margin-top:10px;">
+      <thead><tr><th>Product</th><th>Price</th><th>Qty</th><th>Total</th></tr></thead>
+      <tbody>
+        ${data.items.map(item => 
+          `<tr><td>${item.name}</td><td>₹${Number(item.price).toFixed(2)}</td><td>${item.quantity}</td><td>₹${Number(item.line_total).toFixed(2)}</td></tr>`
+        ).join('')}
+      </tbody>
+    </table>
+  `;
+  
+  container.style.display = 'block';
+  document.getElementById('bill-detail-container').scrollIntoView({ behavior: 'smooth' });
+}
+
+document.getElementById('close-bill-detail').addEventListener('click', () => {
+  document.getElementById('bill-detail-container').style.display = 'none';
+  currentBillId = null;
+});
+
+async function editBill(saleId) {
+  // Redirect to sales section with saleId parameter for editing
+  currentBillId = saleId;
+  document.querySelector('a[data-section="sales"]').click();
+  // Note: Full edit form would need to load existing bill data into sales form
+  alert('Edit functionality loads in New Sale section. Click New Sale to edit.');
+}
+
+document.getElementById('delete-bill-btn').addEventListener('click', async () => {
+  if (!currentBillId || !confirm('Delete this bill? This will restore stock.')) return;
+  
+  const data = await fetchJSON(`${API_BASE}?route=delete-bill`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sale_id: currentBillId })
+  });
+  
+  if (data && data.success) {
+    showMsg(document.getElementById('bills-table-body'), 'Bill deleted successfully');
+    document.getElementById('bill-detail-container').style.display = 'none';
+    loadBills();
+    loadStock();
+    loadDashboard();
+  }
+});
+
+// --- BORROWERS ---
+async function loadBorrowers() {
+  const data = await fetchJSON(`${API_BASE}?route=borrowers`);
+  if (!data) return;
+  const tbody = document.getElementById('borrowers-table-body');
+  tbody.innerHTML = '';
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${row.name}</strong></td>
+      <td style="color: #dc3545; font-weight: bold;">₹${Number(row.outstanding_amount).toFixed(2)}</td>
+      <td>${new Date().toLocaleDateString()}</td>
+      <td>
+        <button class="pay-btn btn-success" data-borrower-id="${row.id}" data-name="${row.name}">Pay</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Payment handlers
+  document.querySelectorAll('.pay-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const borrowerId = e.target.dataset.borrowerId;
+      const borrowerName = e.target.dataset.name;
+      const amt = prompt(`Payment amount for ${borrowerName}:`, '0');
+      const numAmt = parseFloat(amt);
+      
+      if (!numAmt || numAmt <= 0) {
+        alert('Invalid amount');
+        return;
+      }
+
+      const res = await fetchJSON(`${API_BASE}?route=borrower-payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ borrower_id: borrowerId, amount: numAmt })
+      });
+
+      if (res && res.success) {
+        alert('Payment recorded successfully');
+        loadBorrowers();
+        loadDashboard();
+        loadBills();
+      } else {
+        alert('Error processing payment');
+      }
+    });
+  });
+}
+
+// Load dashboard on page load
+loadDashboard();
 </script>
 </body>
 </html>
-
-
-
