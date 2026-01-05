@@ -13,12 +13,12 @@
     section.active { display: block; }
     h2 { margin-top: 0; }
     table { border-collapse: collapse; width: 100%; margin-top: 10px; background: #fff; }
-    th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; text-align:center; }
+    th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; }
     th { background: #eee; }
     .near-expiry { background: #fff3cd; }
     .expired { background: #f8d7da; }
     .form-row { margin-bottom: 8px; }
-    label { display: inline-block; width: 140px; text-align:right; margin-right:5px; }
+    label { display: inline-block; width: 140px; }
     input, select { padding: 5px; font-size: 14px; }
     button { padding: 6px 12px; margin: 4px 0; cursor: pointer; }
     .pill { display: inline-block; padding: 4px 8px; border-radius: 4px; margin-right: 6px; }
@@ -185,8 +185,6 @@
           <th>Total</th>
           <th>Paid</th>
           <th>Borrow</th>
-          <th>Edit</th>
-          <th>Delete</th>
         </tr>
       </thead>
       <tbody id="bills-table-body"></tbody>
@@ -210,13 +208,13 @@
 </main>
 
 <script>
-const API_BASE='/api/server';
+const API_BASE = '/api/server';
 
-// ---------- NAVIGATION ----------
+// --- NAVIGATION ---
 document.querySelectorAll('nav a').forEach(a=>{
-  a.addEventListener('click',e=>{
+  a.addEventListener('click', e=>{
     e.preventDefault();
-    const sec=a.dataset.section;
+    const sec = a.dataset.section;
     document.querySelectorAll('nav a').forEach(x=>x.classList.remove('active'));
     a.classList.add('active');
     document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
@@ -231,13 +229,23 @@ document.querySelectorAll('nav a').forEach(a=>{
   });
 });
 
-// ---------- FETCH WRAPPER ----------
-async function fetchJSON(url, opts){
-  try{ const res = await fetch(url, opts); if(!res.ok){console.error(await res.text()); return null;} return await res.json(); }
-  catch(err){ console.error(err); return null; }
+// --- FETCH WRAPPER ---
+async function fetchJSON(url, options){
+  try{
+    const res = await fetch(url, options);
+    if(!res.ok){
+      const text = await res.text();
+      console.error(`HTTP ${res.status}: ${text}`);
+      return null;
+    }
+    return await res.json();
+  } catch(err){
+    console.error('Fetch error:', err);
+    return null;
+  }
 }
 
-// ---------- DASHBOARD ----------
+// --- DASHBOARD ---
 async function loadDashboard(){
   const data = await fetchJSON(`${API_BASE}?route=dashboard`);
   if(!data) return;
@@ -249,38 +257,43 @@ async function loadDashboard(){
   document.getElementById('dash-borrower-payments').textContent=Number(data.borrower_payments).toFixed(2);
 }
 
-// ---------- STOCK ----------
+// --- STOCK ---
 async function loadStock(){
   const data = await fetchJSON(`${API_BASE}?route=stock`);
   if(!data) return;
-  const tbody=document.getElementById('stock-table-body'); tbody.innerHTML='';
-  const today=new Date();
+  const tbody = document.getElementById('stock-table-body');
+  tbody.innerHTML='';
+  const today = new Date();
   data.forEach(row=>{
     const tr=document.createElement('tr');
-    const exp=new Date(row.expiry_date);
+    const exp = new Date(row.expiry_date);
     if((exp-today)/(1000*60*60*24)<=7) tr.classList.add('near-expiry');
     tr.innerHTML=`<td>${row.name}</td><td>${Number(row.price).toFixed(2)}</td><td>${row.expiry_date}</td><td>${row.quantity}</td>`;
     tbody.appendChild(tr);
   });
 }
 
-document.getElementById('stock-add-btn').addEventListener('click',async()=>{
+document.getElementById('stock-add-btn').addEventListener('click', async ()=>{
   const name=document.getElementById('stock-name').value.trim();
   const price=parseFloat(document.getElementById('stock-price').value);
   const expiry=document.getElementById('stock-expiry').value;
   const qty=parseInt(document.getElementById('stock-qty').value);
   const msgEl=document.getElementById('stock-msg'); msgEl.textContent='';
   if(!name||!price||!expiry||!qty){msgEl.textContent='Fill all fields'; return;}
-  const data=await fetchJSON(`${API_BASE}?route=stock`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,price,expiry_date:expiry,quantity:qty})});
+  const data = await fetchJSON(`${API_BASE}?route=stock`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, price, expiry_date:expiry, quantity:qty})
+  });
   if(data){msgEl.textContent='Stock saved'; document.getElementById('stock-name').value=''; document.getElementById('stock-price').value=''; document.getElementById('stock-expiry').value=''; document.getElementById('stock-qty').value=''; loadStock();}
   else msgEl.textContent='Error saving stock';
 });
 
-// ---------- EXPIRED ----------
+// --- EXPIRED ---
 async function loadExpired(){
   const data = await fetchJSON(`${API_BASE}?route=expired`);
   if(!data) return;
-  const tbody=document.getElementById('expired-table-body'); tbody.innerHTML='';
+  const tbody = document.getElementById('expired-table-body'); tbody.innerHTML='';
   data.forEach(row=>{
     const tr=document.createElement('tr'); tr.classList.add('expired');
     tr.innerHTML=`<td>${row.name}</td><td>${Number(row.price).toFixed(2)}</td><td>${row.expiry_date}</td><td>${row.expired_date}</td><td>${row.quantity}</td>`;
@@ -288,17 +301,17 @@ async function loadExpired(){
   });
 }
 
-// ---------- SALES ----------
+// --- SALES PRODUCTS ---
 let saleProducts=[];
 async function loadSaleProducts(){
   const data = await fetchJSON(`${API_BASE}?route=sale-products`);
   if(!data) return;
-  saleProducts=data;
+  saleProducts = data;
   document.getElementById('sale-items-body').innerHTML='';
   recalcTotals();
 }
 
-// ---------- CALCULATE TOTALS ----------
+// --- RE-CALCULATE TOTALS ---
 function recalcTotals(){
   let total=0;
   document.querySelectorAll('#sale-items-body tr').forEach(tr=>{
@@ -310,36 +323,54 @@ function recalcTotals(){
   });
   document.getElementById('sale-total').textContent=total.toFixed(2);
   const paid=parseFloat(document.getElementById('sale-paid').value)||0;
-  let remaining=total-paid;
+  let remaining = total-paid;
   if(remaining<0){document.getElementById('sale-paid').value=total.toFixed(2); remaining=0;}
   document.getElementById('sale-remaining').textContent=remaining.toFixed(2);
 }
 
-// ---------- ADD ITEM TO SALE ----------
+// --- ADD SALE ITEM ---
 document.getElementById('sale-add-item').addEventListener('click',()=>{
   const tbody=document.getElementById('sale-items-body');
   const tr=document.createElement('tr');
-  const options=saleProducts.map(p=>`<option value="${p.id}">${p.name}|₹${p.price}|Exp:${p.expiry_date}|Stock:${p.quantity}</option>`).join('');
-  tr.innerHTML=`<td><select class="sale-product"><option value="">Select...</option>${options}</select></td>
-                <td class="sale-price">0</td>
-                <td class="sale-expiry"></td>
-                <td><input class="sale-qty" type="number" min="1" value="1"></td>
-                <td class="sale-line-total">0</td>
-                <td><button class="sale-remove">X</button></td>`;
+  const options = saleProducts.map(p=>`<option value="${p.id}">${p.name}|₹${p.price}|Exp:${p.expiry_date}|Stock:${p.quantity}</option>`).join('');
+  tr.innerHTML = `<td><select class="sale-product"><option value="">Select...</option>${options}</select></td>
+                  <td class="sale-price">0</td>
+                  <td class="sale-expiry"></td>
+                  <td><input class="sale-qty" type="number" min="1" value="1"></td>
+                  <td class="sale-line-total">0</td>
+                  <td><button class="sale-remove">X</button></td>`;
   tbody.appendChild(tr);
 
-  const sel=tr.querySelector('.sale-product');
-  const qtyInput=tr.querySelector('.sale-qty');
+  const sel = tr.querySelector('.sale-product');
+  const qtyInput = tr.querySelector('.sale-qty');
 
-  sel.addEventListener('change',()=>{const id=parseInt(sel.value); const p=saleProducts.find(x=>x.id===id); if(p){tr.querySelector('.sale-price').textContent=Number(p.price).toFixed(2); tr.querySelector('.sale-expiry').textContent=p.expiry_date; if(qtyInput.value>p.quantity) qtyInput.value=p.quantity;} else{tr.querySelector('.sale-price').textContent='0'; tr.querySelector('.sale-expiry').textContent='';} recalcTotals();});
-  qtyInput.addEventListener('input',()=>{const id=parseInt(sel.value); const p=saleProducts.find(x=>x.id===id); let q=parseInt(qtyInput.value)||1; if(p&&q>p.quantity) q=p.quantity; if(q<1) q=1; qtyInput.value=q; recalcTotals();});
+  sel.addEventListener('change', ()=>{
+    const id = parseInt(sel.value);
+    const product = saleProducts.find(p=>p.id===id);
+    if(product){
+      tr.querySelector('.sale-price').textContent=Number(product.price).toFixed(2);
+      tr.querySelector('.sale-expiry').textContent=product.expiry_date;
+      if(parseInt(qtyInput.value)>product.quantity) qtyInput.value = product.quantity;
+    } else { tr.querySelector('.sale-price').textContent='0'; tr.querySelector('.sale-expiry').textContent=''; }
+    recalcTotals();
+  });
+
+  qtyInput.addEventListener('input', ()=>{
+    const id = parseInt(sel.value);
+    const product = saleProducts.find(p=>p.id===id);
+    let qty=parseInt(qtyInput.value)||0;
+    if(product && qty>product.quantity) qty=product.quantity;
+    if(qty<1) qty=1; qtyInput.value=qty;
+    recalcTotals();
+  });
+
   tr.querySelector('.sale-remove').addEventListener('click',()=>{tr.remove(); recalcTotals();});
 });
 
 document.getElementById('sale-paid').addEventListener('input', recalcTotals);
 
-// ---------- SAVE SALE ----------
-document.getElementById('sale-save').addEventListener('click',async()=>{
+// --- SAVE SALE ---
+document.getElementById('sale-save').addEventListener('click', async ()=>{
   const msgEl=document.getElementById('sale-msg'); msgEl.textContent='';
   const customer=document.getElementById('sale-customer').value.trim();
   const paymentType=document.getElementById('sale-payment-type').value;
@@ -352,127 +383,37 @@ document.getElementById('sale-save').addEventListener('click',async()=>{
   const items=[];
   let valid=true;
   document.querySelectorAll('#sale-items-body tr').forEach(tr=>{
-    const sel=tr.querySelector('.sale-product'); const pid=parseInt(sel.value); const price=parseFloat(tr.querySelector('.sale-price').textContent)||0; const qty=parseInt(tr.querySelector('.sale-qty').value)||0;
-    if(!pid||price<=0||qty<=0) valid=false;
-    items.push({product_id:pid,price,quantity:qty});
+    const sel=tr.querySelector('.sale-product');
+    const productId=parseInt(sel.value);
+    const price=parseFloat(tr.querySelector('.sale-price').textContent)||0;
+    const qty=parseInt(tr.querySelector('.sale-qty').value)||0;
+    if(!productId||price<=0||qty<=0) valid=false;
+    items.push({product_id:productId,price,quantity:qty});
   });
   if(!valid || items.length===0){msgEl.textContent='Invalid items'; return;}
 
-  const data = await fetchJSON(`${API_BASE}?route=sales`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customer_name:customer||null, payment_type:paymentType, total_amount:total, paid_amount:paid, items})});
-  if(data){msgEl.textContent='Sale saved'; document.getElementById('sale-customer').value=''; document.getElementById('sale-items-body').innerHTML=''; document.getElementById('sale-paid').value='0'; recalcTotals(); loadStock(); loadDashboard(); loadBills();}
+  const data = await fetchJSON(`${API_BASE}?route=sales`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({customer_name:customer||null, payment_type:paymentType, total_amount:total, paid_amount:paid, items})
+  });
+  if(data){msgEl.textContent='Sale saved'; document.getElementById('sale-customer').value=''; document.getElementById('sale-items-body').innerHTML=''; document.getElementById('sale-paid').value='0'; recalcTotals(); loadStock(); loadDashboard(); loadBills(); }
   else msgEl.textContent='Error saving sale';
 });
 
-// ---------- SALES BILLS ----------
+// --- SALES BILLS ---
 async function loadBills(){
-  const data=await fetchJSON(`${API_BASE}?route=sales`);
+  const data = await fetchJSON(`${API_BASE}?route=sales`);
   if(!data) return;
-    const tbody=document.getElementById('bills-table-body'); 
-  tbody.innerHTML='';
-
+  const tbody=document.getElementById('bills-table-body'); tbody.innerHTML='';
   data.forEach(row=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`
-      <td>${row.date}</td>
-      <td>${row.customer||''}</td>
-      <td>${row.payment_type}</td>
-      <td>${Number(row.total_amount).toFixed(2)}</td>
-      <td>${Number(row.paid_amount).toFixed(2)}</td>
-      <td>${Number(row.borrow_amount||0).toFixed(2)}</td>
-      <td><button class="edit-bill">Edit</button></td>
-      <td><button class="delete-bill">Delete</button></td>
-    `;
+    tr.innerHTML=`<td>${row.date}</td><td>${row.customer||''}</td><td>${row.payment_type}</td><td>${Number(row.total_amount).toFixed(2)}</td><td>${Number(row.paid_amount).toFixed(2)}</td><td>${Number(row.borrow_amount||0).toFixed(2)}</td>`;
     tbody.appendChild(tr);
-
-    // --- EDIT BILL ---
-    tr.querySelector('.edit-bill').addEventListener('click', async ()=>{
-      // Load bill items into Sales section
-      document.querySelector('nav a[data-section="sales"]').click();
-      document.getElementById('sale-customer').value = row.customer || '';
-      document.getElementById('sale-payment-type').value = row.payment_type;
-      document.getElementById('sale-items-body').innerHTML = '';
-
-      // Fetch full items for this sale
-      const itemsData = await fetchJSON(`${API_BASE}?route=sale-items&id=${row.id}`);
-      if(!itemsData) return;
-
-      itemsData.forEach(item=>{
-        const trItem=document.createElement('tr');
-        const options=saleProducts.map(p=>`<option value="${p.id}" ${p.id===item.product_id?'selected':''}>${p.name}|₹${p.price}|Exp:${p.expiry_date}|Stock:${p.quantity}</option>`).join('');
-        trItem.innerHTML=`<td><select class="sale-product"><option value="">Select...</option>${options}</select></td>
-                          <td class="sale-price">${Number(item.price).toFixed(2)}</td>
-                          <td class="sale-expiry">${item.expiry_date}</td>
-                          <td><input class="sale-qty" type="number" min="1" value="${item.quantity}"></td>
-                          <td class="sale-line-total">${(item.price*item.quantity).toFixed(2)}</td>
-                          <td><button class="sale-remove">X</button></td>`;
-        document.getElementById('sale-items-body').appendChild(trItem);
-
-        const sel = trItem.querySelector('.sale-product');
-        const qtyInput = trItem.querySelector('.sale-qty');
-        sel.addEventListener('change', ()=>{
-          const pId=parseInt(sel.value);
-          const p=saleProducts.find(x=>x.id===pId);
-          if(p){ trItem.querySelector('.sale-price').textContent=Number(p.price).toFixed(2); trItem.querySelector('.sale-expiry').textContent=p.expiry_date; if(qtyInput.value>p.quantity) qtyInput.value=p.quantity;}
-          else {trItem.querySelector('.sale-price').textContent='0'; trItem.querySelector('.sale-expiry').textContent='';}
-          recalcTotals();
-        });
-        qtyInput.addEventListener('input', ()=>{
-          let q=parseInt(qtyInput.value)||1;
-          const pId=parseInt(sel.value);
-          const p=saleProducts.find(x=>x.id===pId);
-          if(p && q>p.quantity) q=p.quantity;
-          if(q<1) q=1;
-          qtyInput.value=q;
-          recalcTotals();
-        });
-        trItem.querySelector('.sale-remove').addEventListener('click', ()=>{ trItem.remove(); recalcTotals(); });
-      });
-
-      document.getElementById('sale-paid').value = row.paid_amount.toFixed(2);
-      recalcTotals();
-
-      // Override save button to update existing sale
-      const saveBtn = document.getElementById('sale-save');
-      saveBtn.onclick = async ()=>{
-        const msgEl=document.getElementById('sale-msg'); msgEl.textContent='';
-        const customer=document.getElementById('sale-customer').value.trim();
-        const paymentType=document.getElementById('sale-payment-type').value;
-        const total=parseFloat(document.getElementById('sale-total').textContent)||0;
-        let paid=parseFloat(document.getElementById('sale-paid').value)||0;
-        if(total<=0){msgEl.textContent='Add at least one item'; return;}
-        if(paid>total){paid=total; document.getElementById('sale-paid').value=total.toFixed(2);}
-        if(paymentType==='BORROW' && !customer){msgEl.textContent='Customer required for borrow'; return;}
-
-        const items=[];
-        let valid=true;
-        document.querySelectorAll('#sale-items-body tr').forEach(tr=>{
-          const sel=tr.querySelector('.sale-product'); const pid=parseInt(sel.value); const price=parseFloat(tr.querySelector('.sale-price').textContent)||0; const qty=parseInt(tr.querySelector('.sale-qty').value)||0;
-          if(!pid||price<=0||qty<=0) valid=false;
-          items.push({product_id:pid,price,quantity:qty});
-        });
-        if(!valid || items.length===0){msgEl.textContent='Invalid items'; return;}
-
-        const res = await fetchJSON(`${API_BASE}?route=sales&id=${row.id}`,{
-          method:'PUT',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({customer_name:customer||null, payment_type:paymentType, total_amount:total, paid_amount:paid, items})
-        });
-        if(res){ msgEl.textContent='Sale updated'; document.getElementById('sale-customer').value=''; document.getElementById('sale-items-body').innerHTML=''; document.getElementById('sale-paid').value='0'; recalcTotals(); loadStock(); loadDashboard(); loadBills(); }
-        else msgEl.textContent='Error updating sale';
-      };
-    });
-
-    // --- DELETE BILL ---
-    tr.querySelector('.delete-bill').addEventListener('click', async ()=>{
-      if(!confirm('Delete this sales bill?')) return;
-      const res=await fetchJSON(`${API_BASE}?route=sales&id=${row.id}`,{method:'DELETE'});
-      if(res){ loadBills(); loadDashboard(); loadStock(); }
-      else alert('Error deleting bill');
-    });
   });
 }
 
-// ---------- BORROWERS ----------
+// --- BORROWERS ---
 async function loadBorrowers(){
   const data = await fetchJSON(`${API_BASE}?route=borrowers`);
   if(!data) return;
@@ -481,11 +422,11 @@ async function loadBorrowers(){
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${row.name}</td><td>${Number(row.outstanding_amount).toFixed(2)}</td><td><button class="pay-btn">Pay</button></td>`;
     tbody.appendChild(tr);
-
-    tr.querySelector('.pay-btn').addEventListener('click', async ()=>{
-      const amt=prompt('Enter payment amount:',row.outstanding_amount);
+    const btn = tr.querySelector('.pay-btn');
+    btn.addEventListener('click', async ()=>{
+      const amt=prompt('Enter payment amount:',row.outstanding);
       const numAmt=parseFloat(amt)||0;
-      if(numAmt<=0 || numAmt>row.outstanding_amount) {alert('Invalid amount'); return;}
+      if(numAmt<=0 || numAmt>row.outstanding) {alert('Invalid amount'); return;}
       const res = await fetchJSON(`${API_BASE}?route=borrower-payments`,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -499,4 +440,6 @@ async function loadBorrowers(){
 </script>
 </body>
 </html>
+
+
 
