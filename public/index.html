@@ -721,7 +721,7 @@ async function loadBorrowers() {
       const res = await fetchJSON(`${API_BASE}?route=borrower-payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ borrower_id: borrowerId, amount: numAmt })
+        body: JSON.stringify({ borrowerId: borrowerId, amount: numAmt })
       });
 
       if (res && res.success) {
@@ -741,4 +741,5 @@ loadDashboard();
 </script>
 </body>
 </html>
+
 
