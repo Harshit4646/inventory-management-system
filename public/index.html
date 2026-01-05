@@ -256,9 +256,13 @@ document.querySelectorAll('nav a').forEach(a => {
     if (sec === 'stock') loadStock();
     if (sec === 'expired') loadExpired();
     if (sec === 'sales') {
-      loadSaleProducts();
-      checkEditMode(); // Check if editing from URL or currentBillId
-    }
+  loadSaleProducts();
+  // Only check edit mode if coming from outside sales or first load
+  if (document.querySelector('nav a.active').dataset.section !== 'sales' || !document.querySelector('#sales.active')) {
+    checkEditMode();
+  }
+}
+
     if (sec === 'bills') loadBills();
     if (sec === 'borrowers') loadBorrowers();
   });
@@ -355,6 +359,7 @@ async function loadExpired() {
 // --- SALES PRODUCTS & NEW SALE ---
 let saleProducts = [];
 let currentBillId = null;
+let isLoadingEditBill = false;
 
 async function loadSaleProducts() {
   const data = await fetchJSON(`${API_BASE}?route=sale-products`);
@@ -508,21 +513,25 @@ function resetSaleForm() {
   document.getElementById('sale-customer').value = '';
   document.getElementById('sale-paid').value = '0';
   currentBillId = null;
+  isLoadingEditBill = false; // Add this line
   recalcTotals();
 }
 
+
 // EDIT BILL FUNCTIONS
 async function editBill(saleId) {
+  if (isLoadingEditBill) return; // Prevent double-loading
+  
   const data = await fetchJSON(`${API_BASE}?route=bill-detail&sale_id=${saleId}`);
   if (!data || !data.sale) {
     alert('Bill not found');
+    currentBillId = null;
     return;
   }
 
   currentBillId = saleId;
-  document.querySelector('a[data-section="sales"]').click();
-
-  // Update UI for edit mode
+  
+  // Update UI for edit mode (idempotent - safe to call multiple times)
   document.getElementById('sales-title').textContent = `Edit Bill #${data.sale.id}`;
   document.getElementById('cancel-edit-btn').style.display = 'inline-block';
   document.getElementById('sale-save').textContent = 'Update Bill';
@@ -532,13 +541,16 @@ async function editBill(saleId) {
   document.getElementById('sale-payment-type').value = data.sale.payment_type;
   document.getElementById('sale-paid').value = Number(data.sale.paid_amount).toFixed(2);
   
-  // Clear and load items
+  // Load items only if form is empty (prevents overwriting user changes)
   const tbody = document.getElementById('sale-items-body');
-  tbody.innerHTML = '';
-  data.items.forEach(item => addEditItem(item));
+  if (tbody.children.length === 0) {
+    tbody.innerHTML = '';
+    data.items.forEach(item => addEditItem(item));
+  }
   
   recalcTotals();
 }
+
 
 function addEditItem(item) {
   const tbody = document.getElementById('sale-items-body');
@@ -569,13 +581,25 @@ function addEditItem(item) {
 }
 
 function checkEditMode() {
-  if (currentBillId) {
-    editBill(currentBillId);
+  // Only auto-load if not already loading and in edit mode
+  if (currentBillId && !isLoadingEditBill) {
+    isLoadingEditBill = true;
+    setTimeout(() => {
+      editBill(currentBillId);
+      isLoadingEditBill = false;
+    }, 100); // Small delay to prevent rapid re-trigger
   }
 }
 
 // Cancel Edit
-document.getElementById('cancel-edit-btn').addEventListener('click', resetSaleForm);
+document.getElementById('cancel-edit-btn').addEventListener('click', () => {
+  resetSaleForm();
+  // Switch back to bills if that's where we came from
+  if (document.querySelector('nav a.active').dataset.section === 'sales') {
+    document.querySelector('a[data-section="bills"]').click();
+  }
+});
+
 
 // --- SALES BILLS ---
 async function loadBills() {
@@ -717,3 +741,4 @@ loadDashboard();
 </script>
 </body>
 </html>
+
