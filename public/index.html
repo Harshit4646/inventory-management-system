@@ -27,6 +27,7 @@
     .btn-success { background: #28a745; color: white; }
     .btn-danger { background: #dc3545; color: white; }
     .btn-warning { background: #ffc107; color: #212529; }
+    .btn-secondary { background: #6c757d; color: white; }
     .pill { display: inline-block; padding: 4px 8px; border-radius: 4px; margin-right: 6px; font-size: 12px; font-weight: bold; }
     .pill.cash { background: #d4edda; color: #155724; }
     .pill.online { background: #d1ecf1; color: #0c5460; }
@@ -37,7 +38,7 @@
     .msg.success { background: #d4edda; color: #155724; }
     .msg.error { background: #f8d7da; color: #721c24; }
     .actions { white-space: nowrap; }
-    .edit-btn, .delete-btn { font-size: 12px; padding: 4px 8px; margin: 0 2px; }
+    .edit-btn, .delete-btn, .view-btn { font-size: 12px; padding: 4px 8px; margin: 0 2px; }
     .bill-detail { background: #e9ecef; padding: 15px; margin: 10px 0; border-radius: 6px; }
   </style>
 </head>
@@ -139,9 +140,11 @@
     </table>
   </section>
 
-  <!-- NEW SALE -->
+  <!-- NEW SALE / EDIT BILL -->
   <section id="sales">
-    <h2>New Sale</h2>
+    <h2 id="sales-title">New Sale</h2>
+    <button id="cancel-edit-btn" class="btn-danger" style="display:none; margin-bottom:10px;">Cancel Edit</button>
+    
     <div class="form-row">
       <label>Customer name:</label>
       <input id="sale-customer" type="text" placeholder="Customer name (required for BORROW)">
@@ -252,7 +255,10 @@ document.querySelectorAll('nav a').forEach(a => {
     if (sec === 'dashboard') loadDashboard();
     if (sec === 'stock') loadStock();
     if (sec === 'expired') loadExpired();
-    if (sec === 'sales') loadSaleProducts();
+    if (sec === 'sales') {
+      loadSaleProducts();
+      checkEditMode(); // Check if editing from URL or currentBillId
+    }
     if (sec === 'bills') loadBills();
     if (sec === 'borrowers') loadBorrowers();
   });
@@ -348,12 +354,11 @@ async function loadExpired() {
 
 // --- SALES PRODUCTS & NEW SALE ---
 let saleProducts = [];
+let currentBillId = null;
+
 async function loadSaleProducts() {
   const data = await fetchJSON(`${API_BASE}?route=sale-products`);
-  if (!data) return;
-  saleProducts = data;
-  document.getElementById('sale-items-body').innerHTML = '';
-  recalcTotals();
+  if (data) saleProducts = data;
 }
 
 function recalcTotals() {
@@ -376,6 +381,31 @@ function recalcTotals() {
   document.getElementById('sale-remaining').textContent = `₹${remaining.toFixed(2)}`;
 }
 
+function handleProductChange(e) {
+  const tr = e.target.closest('tr');
+  const id = parseInt(e.target.value);
+  const product = saleProducts.find(p => p.id === id);
+  if (product) {
+    tr.querySelector('.sale-price').textContent = `₹${Number(product.price).toFixed(2)}`;
+    tr.querySelector('.sale-expiry').textContent = product.expiry_date;
+  } else {
+    tr.querySelector('.sale-price').textContent = '₹0.00';
+    tr.querySelector('.sale-expiry').textContent = '';
+  }
+  recalcTotals();
+}
+
+function handleQtyChange(e) {
+  const tr = e.target.closest('tr');
+  const id = parseInt(tr.querySelector('.sale-product').value);
+  const product = saleProducts.find(p => p.id === id);
+  let qty = parseInt(e.target.value) || 0;
+  if (product && qty > product.quantity) qty = product.quantity;
+  if (qty < 1) qty = 1;
+  e.target.value = qty;
+  recalcTotals();
+}
+
 document.getElementById('sale-add-item').addEventListener('click', () => {
   const tbody = document.getElementById('sale-items-body');
   const tr = document.createElement('tr');
@@ -396,31 +426,8 @@ document.getElementById('sale-add-item').addEventListener('click', () => {
   const sel = tr.querySelector('.sale-product');
   const qtyInput = tr.querySelector('.sale-qty');
 
-  sel.addEventListener('change', () => {
-    const id = parseInt(sel.value);
-    const product = saleProducts.find(p => p.id === id);
-    if (product) {
-      tr.querySelector('.sale-price').textContent = `₹${Number(product.price).toFixed(2)}`;
-      tr.querySelector('.sale-expiry').textContent = product.expiry_date;
-      const currentQty = parseInt(qtyInput.value);
-      if (currentQty > product.quantity) qtyInput.value = product.quantity;
-    } else {
-      tr.querySelector('.sale-price').textContent = '₹0.00';
-      tr.querySelector('.sale-expiry').textContent = '';
-    }
-    recalcTotals();
-  });
-
-  qtyInput.addEventListener('input', () => {
-    const id = parseInt(sel.value);
-    const product = saleProducts.find(p => p.id === id);
-    let qty = parseInt(qtyInput.value) || 0;
-    if (product && qty > product.quantity) qty = product.quantity;
-    if (qty < 1) qty = 1;
-    qtyInput.value = qty;
-    recalcTotals();
-  });
-
+  sel.addEventListener('change', handleProductChange);
+  qtyInput.addEventListener('input', handleQtyChange);
   tr.querySelector('.sale-remove').addEventListener('click', () => {
     tr.remove();
     recalcTotals();
@@ -465,18 +472,26 @@ document.getElementById('sale-save').addEventListener('click', async () => {
     return;
   }
 
-  const data = await fetchJSON(`${API_BASE}?route=sales`, {
+  const isEdit = !!currentBillId;
+  const route = isEdit ? 'edit-bill' : 'sales';
+  const body = {
+    ...(isEdit && { sale_id: currentBillId }),
+    customer_name: customer || null,
+    payment_type: paymentType,
+    total_amount: total,
+    paid_amount: paid,
+    items
+  };
+
+  const data = await fetchJSON(`${API_BASE}?route=${route}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ customer_name: customer || null, payment_type: paymentType, total_amount: total, paid_amount: paid, items })
+    body: JSON.stringify(body)
   });
 
   if (data && data.success) {
-    showMsg(msgEl, 'Sale saved successfully');
-    document.getElementById('sale-customer').value = '';
-    document.getElementById('sale-items-body').innerHTML = '';
-    document.getElementById('sale-paid').value = '0';
-    recalcTotals();
+    showMsg(msgEl, `Bill ${isEdit ? 'updated' : 'saved'} successfully`);
+    resetSaleForm();
     loadStock();
     loadDashboard();
     loadBills();
@@ -485,8 +500,84 @@ document.getElementById('sale-save').addEventListener('click', async () => {
   }
 });
 
+function resetSaleForm() {
+  document.getElementById('sales-title').textContent = 'New Sale';
+  document.getElementById('cancel-edit-btn').style.display = 'none';
+  document.getElementById('sale-save').textContent = 'Save Sale';
+  document.getElementById('sale-items-body').innerHTML = '';
+  document.getElementById('sale-customer').value = '';
+  document.getElementById('sale-paid').value = '0';
+  currentBillId = null;
+  recalcTotals();
+}
+
+// EDIT BILL FUNCTIONS
+async function editBill(saleId) {
+  const data = await fetchJSON(`${API_BASE}?route=bill-detail&sale_id=${saleId}`);
+  if (!data || !data.sale) {
+    alert('Bill not found');
+    return;
+  }
+
+  currentBillId = saleId;
+  document.querySelector('a[data-section="sales"]').click();
+
+  // Update UI for edit mode
+  document.getElementById('sales-title').textContent = `Edit Bill #${data.sale.id}`;
+  document.getElementById('cancel-edit-btn').style.display = 'inline-block';
+  document.getElementById('sale-save').textContent = 'Update Bill';
+  
+  // Load form data
+  document.getElementById('sale-customer').value = data.sale.customer_name || '';
+  document.getElementById('sale-payment-type').value = data.sale.payment_type;
+  document.getElementById('sale-paid').value = Number(data.sale.paid_amount).toFixed(2);
+  
+  // Clear and load items
+  const tbody = document.getElementById('sale-items-body');
+  tbody.innerHTML = '';
+  data.items.forEach(item => addEditItem(item));
+  
+  recalcTotals();
+}
+
+function addEditItem(item) {
+  const tbody = document.getElementById('sale-items-body');
+  const product = saleProducts.find(p => p.id == item.product_id);
+  if (!product) return;
+
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><select class="sale-product"><option value="${product.id}">${product.name}</option></select></td>
+    <td class="sale-price">₹${Number(item.price).toFixed(2)}</td>
+    <td class="sale-expiry">${product.expiry_date || ''}</td>
+    <td><input class="sale-qty" type="number" min="1" value="${item.quantity}" style="width:60px"></td>
+    <td class="sale-line-total">₹${(item.price * item.quantity).toFixed(2)}</td>
+    <td><button class="sale-remove btn-danger" style="font-size:12px;padding:2px 6px;">X</button></td>
+  `;
+  
+  tbody.appendChild(tr);
+  
+  const sel = tr.querySelector('.sale-product');
+  const qtyInput = tr.querySelector('.sale-qty');
+  
+  sel.addEventListener('change', handleProductChange);
+  qtyInput.addEventListener('input', handleQtyChange);
+  tr.querySelector('.sale-remove').addEventListener('click', () => {
+    tr.remove();
+    recalcTotals();
+  });
+}
+
+function checkEditMode() {
+  if (currentBillId) {
+    editBill(currentBillId);
+  }
+}
+
+// Cancel Edit
+document.getElementById('cancel-edit-btn').addEventListener('click', resetSaleForm);
+
 // --- SALES BILLS ---
-let currentBillId = null;
 async function loadBills() {
   const data = await fetchJSON(`${API_BASE}?route=sales`);
   if (!data) return;
@@ -504,25 +595,19 @@ async function loadBills() {
       <td>₹${Number(row.borrow_amount || 0).toFixed(2)}</td>
       <td class="actions">
         <button class="edit-btn btn-warning" data-sale-id="${row.id}">Edit</button>
-        <button class="view-btn btn-primary" data-sale-id="${row.id}" style="font-size:12px;padding:4px 8px;">View</button>
+        <button class="view-btn btn-primary" data-sale-id="${row.id}">View</button>
       </td>
     `;
     tbody.appendChild(tr);
   });
 
-  // Add event listeners for bill actions
-  document.querySelectorAll('.view-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const saleId = e.target.dataset.saleId;
-      await showBillDetail(saleId);
-    });
-  });
-
+  // Event listeners
   document.querySelectorAll('.edit-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const saleId = e.target.dataset.saleId;
-      editBill(saleId);
-    });
+    btn.addEventListener('click', (e) => editBill(e.target.dataset.saleId));
+  });
+  
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => showBillDetail(e.target.dataset.saleId));
   });
 }
 
@@ -553,21 +638,12 @@ async function showBillDetail(saleId) {
   `;
   
   container.style.display = 'block';
-  document.getElementById('bill-detail-container').scrollIntoView({ behavior: 'smooth' });
+  container.scrollIntoView({ behavior: 'smooth' });
 }
 
 document.getElementById('close-bill-detail').addEventListener('click', () => {
   document.getElementById('bill-detail-container').style.display = 'none';
-  currentBillId = null;
 });
-
-async function editBill(saleId) {
-  // Redirect to sales section with saleId parameter for editing
-  currentBillId = saleId;
-  document.querySelector('a[data-section="sales"]').click();
-  // Note: Full edit form would need to load existing bill data into sales form
-  alert('Edit functionality loads in New Sale section. Click New Sale to edit.');
-}
 
 document.getElementById('delete-bill-btn').addEventListener('click', async () => {
   if (!currentBillId || !confirm('Delete this bill? This will restore stock.')) return;
@@ -579,7 +655,7 @@ document.getElementById('delete-bill-btn').addEventListener('click', async () =>
   });
   
   if (data && data.success) {
-    showMsg(document.getElementById('bills-table-body'), 'Bill deleted successfully');
+    alert('Bill deleted successfully');
     document.getElementById('bill-detail-container').style.display = 'none';
     loadBills();
     loadStock();
@@ -606,7 +682,6 @@ async function loadBorrowers() {
     tbody.appendChild(tr);
   });
 
-  // Payment handlers
   document.querySelectorAll('.pay-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const borrowerId = e.target.dataset.borrowerId;
