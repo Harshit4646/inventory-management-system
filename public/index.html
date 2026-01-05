@@ -707,33 +707,42 @@ async function loadBorrowers() {
   });
 
   document.querySelectorAll('.pay-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const borrowerId = e.target.dataset.borrowerId;
-      const borrowerName = e.target.dataset.name;
-      const amt = prompt(`Payment amount for ${borrowerName}:`, '0');
-      const numAmt = parseFloat(amt);
-      
-      if (!numAmt || numAmt <= 0) {
-        alert('Invalid amount');
-        return;
-      }
+  btn.addEventListener('click', async (e) => {
+    const borrowerId = e.target.dataset.borrowerId;
+    const borrowerName = e.target.dataset.name;
+    const amt = prompt(`Payment amount for ${borrowerName}:`, '0');
+    const numAmt = parseFloat(amt);
+    
+    if (!numAmt || numAmt <= 0 || !borrowerId) {
+      alert('Invalid amount or borrower');
+      return;
+    }
 
-      const res = await fetchJSON(`${API_BASE}?route=borrower-payments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ borrowerId: borrowerId, amount: numAmt })
-      });
+    // Log exact payload for debugging
+    const payload = { borrowerId: parseInt(borrowerId), amount: numAmt };
+    console.log('Sending payload:', payload);
 
-      if (res && res.success) {
-        alert('Payment recorded successfully');
-        loadBorrowers();
-        loadDashboard();
-        loadBills();
-      } else {
-        alert('Error processing payment');
-      }
+    const res = await fetchJSON(`${API_BASE}?route=borrower-payments`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload)
     });
+
+    if (res && res.success) {
+      alert('Payment recorded successfully');
+      loadBorrowers();
+      loadDashboard();
+      loadBills();
+    } else {
+      console.error('Full response:', res);
+      alert(`Error: ${res?.error || 'Unknown error'}`);
+    }
   });
+});
+
 }
 
 // Load dashboard on page load
@@ -741,5 +750,6 @@ loadDashboard();
 </script>
 </body>
 </html>
+
 
 
