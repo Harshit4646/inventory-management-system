@@ -139,20 +139,25 @@ app.all("/api/server", async (req, res) => {
       const monthStart = today.slice(0, 7) + "-01";
 
       const daily_total = (
-        await query(
-          `SELECT COALESCE(SUM(total_amount),0) AS daily_total
-           FROM sales WHERE sale_date::date = $1`,
-          [today]
-        )
-      ).rows[0].daily_total;
+  await query(
+    `SELECT COALESCE(SUM(total_amount),0) AS daily_total
+     FROM sales
+     WHERE sale_date::date = $1
+       AND payment_type IN ('CASH','ONLINE')`,
+    [today]
+  )
+).rows[0].daily_total;
 
-      const monthly_total = (
-        await query(
-          `SELECT COALESCE(SUM(total_amount),0) AS monthly_total
-           FROM sales WHERE sale_date::date BETWEEN $1 AND $2`,
-          [monthStart, today]
-        )
-      ).rows[0].monthly_total;
+const monthly_total = (
+  await query(
+    `SELECT COALESCE(SUM(total_amount),0) AS monthly_total
+     FROM sales
+     WHERE sale_date::date BETWEEN $1 AND $2
+       AND payment_type IN ('CASH','ONLINE')`,
+    [monthStart, today]
+  )
+).rows[0].monthly_total;
+
 
       const daily_cash = (
         await query(
@@ -688,4 +693,5 @@ app.all("/api/server", async (req, res) => {
 });
 
 export default app;
+
 
