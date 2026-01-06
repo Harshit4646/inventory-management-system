@@ -256,13 +256,9 @@ document.querySelectorAll('nav a').forEach(a => {
     if (sec === 'stock') loadStock();
     if (sec === 'expired') loadExpired();
     if (sec === 'sales') {
-  loadSaleProducts();
-  // Only check edit mode if coming from outside sales or first load
-  if (document.querySelector('nav a.active').dataset.section !== 'sales' || !document.querySelector('#sales.active')) {
-    checkEditMode();
-  }
-}
-
+      loadSaleProducts();
+      checkEditMode();
+    }
     if (sec === 'bills') loadBills();
     if (sec === 'borrowers') loadBorrowers();
   });
@@ -513,47 +509,11 @@ function resetSaleForm() {
   document.getElementById('sale-customer').value = '';
   document.getElementById('sale-paid').value = '0';
   currentBillId = null;
-  isLoadingEditBill = false; // Add this line
+  isLoadingEditBill = false;
   recalcTotals();
 }
 
-
-// EDIT BILL FUNCTIONS
-async function editBill(saleId) {
-  resetSaleForm(); // 🔥 VERY IMPORTANT
-
-  isEdit = true;
-  editingSaleId = saleId;
-
-  const res = await fetch(`/api/server?route=bill-detail&sale_id=${saleId}`);
-  const data = await res.json();
-
-  if (!data || !data.sale) return;
-
-  document.getElementById('customer-name').value =
-    data.sale.customer_name || '';
-
-  document.getElementById('payment-type').value =
-    data.sale.payment_type;
-
-  document.getElementById('paid-amount').value =
-    data.sale.paid_amount || 0;
-
-  cart = [];
-
-  data.items.forEach(item => {
-    cart.push({
-      product_id: item.product_id,
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity
-    });
-  });
-
-  renderCart();
-}
-
-
+// Add existing items when editing
 function addEditItem(item) {
   const tbody = document.getElementById('sale-items-body');
   const product = saleProducts.find(p => p.id == item.product_id);
@@ -582,70 +542,77 @@ function addEditItem(item) {
   });
 }
 
+// Load bill into New Sale for editing
+async function editBill(saleId) {
+  resetSaleForm();
+  currentBillId = saleId;
+
+  const data = await fetchJSON(`${API_BASE}?route=bill-detail&sale_id=${saleId}`);
+  if (!data || !data.sale) return;
+
+  document.getElementById('sales-title').textContent = `Edit Bill #${data.sale.id}`;
+  document.getElementById('cancel-edit-btn').style.display = 'inline-block';
+  document.getElementById('sale-save').textContent = 'Update Bill';
+
+  document.getElementById('sale-customer').value = data.sale.customer_name || '';
+  document.getElementById('sale-payment-type').value = data.sale.payment_type;
+  document.getElementById('sale-paid').value = Number(data.sale.paid_amount).toFixed(2);
+
+  data.items.forEach(addEditItem);
+  recalcTotals();
+}
+
 function checkEditMode() {
-  // Only auto-load if not already loading and in edit mode
   if (currentBillId && !isLoadingEditBill) {
     isLoadingEditBill = true;
     setTimeout(() => {
       editBill(currentBillId);
       isLoadingEditBill = false;
-    }, 100); // Small delay to prevent rapid re-trigger
+    }, 100);
   }
 }
 
-// Cancel Edit
 document.getElementById('cancel-edit-btn').addEventListener('click', () => {
   resetSaleForm();
-  // Switch back to bills if that's where we came from
   if (document.querySelector('nav a.active').dataset.section === 'sales') {
     document.querySelector('a[data-section="bills"]').click();
   }
 });
 
-
 // --- SALES BILLS ---
 async function loadBills() {
-  const res = await fetch('/api/server?route=bills');
-  const bills = await res.json();
+  const bills = await fetchJSON(`${API_BASE}?route=bills`);
+  if (!bills) return;
 
-  const tbody = document.querySelector('#bills-table tbody');
+  const tbody = document.getElementById('bills-table-body');
+  if (!tbody) return;
   tbody.innerHTML = '';
 
   bills.forEach(bill => {
     const tr = document.createElement('tr');
-
     tr.innerHTML = `
-      <td>${bill.id}</td>
-      <td>${bill.customer_name || '-'}</td>
-      <td>${bill.total_amount}</td>
+      <td>${bill.sale_date || ''}</td>
+      <td>${bill.customer_name || 'Walk-in'}</td>
       <td>${bill.payment_type}</td>
-      <td>
-        <button class="edit-btn" data-sale-id="${bill.id}">Edit</button>
+      <td>₹${Number(bill.total_amount).toFixed(2)}</td>
+      <td>₹${Number(bill.paid_amount).toFixed(2)}</td>
+      <td>₹${Number(bill.borrow_amount || 0).toFixed(2)}</td>
+      <td class="actions">
+        <button class="view-btn btn-secondary" data-sale-id="${bill.id}">View</button>
       </td>
     `;
-
     tbody.appendChild(tr);
   });
 
-  // 🔥 FIX: switch to SALES section before editing
-  document.querySelectorAll('.edit-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
       const saleId = e.target.dataset.saleId;
-
-      // activate sales tab
-      document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
-      document.querySelector('a[data-section="sales"]').classList.add('active');
-
-      document.querySelectorAll('main section').forEach(sec => sec.classList.remove('active'));
-      document.getElementById('sales').classList.add('active');
-
-      await loadSaleProducts();   // ensure products loaded
-      editBill(saleId);           // load bill data
+      showBillDetail(saleId);
     });
   });
 }
 
-
+// --- BILL DETAIL POPUP ---
 async function showBillDetail(saleId) {
   const data = await fetchJSON(`${API_BASE}?route=bill-detail&sale_id=${saleId}`);
   if (!data) return;
@@ -680,6 +647,14 @@ document.getElementById('close-bill-detail').addEventListener('click', () => {
   document.getElementById('bill-detail-container').style.display = 'none';
 });
 
+document.getElementById('edit-bill-btn').addEventListener('click', async () => {
+  if (!currentBillId) return;
+  document.querySelector('a[data-section="sales"]').click();
+  await loadSaleProducts();
+  editBill(currentBillId);
+  document.getElementById('bill-detail-container').style.display = 'none';
+});
+
 document.getElementById('delete-bill-btn').addEventListener('click', async () => {
   if (!currentBillId || !confirm('Delete this bill? This will restore stock.')) return;
   
@@ -695,6 +670,8 @@ document.getElementById('delete-bill-btn').addEventListener('click', async () =>
     loadBills();
     loadStock();
     loadDashboard();
+  } else {
+    alert('Error deleting bill');
   }
 });
 
@@ -718,42 +695,40 @@ async function loadBorrowers() {
   });
 
   document.querySelectorAll('.pay-btn').forEach(btn => {
-  btn.addEventListener('click', async (e) => {
-    const borrowerId = e.target.dataset.borrowerId;
-    const borrowerName = e.target.dataset.name;
-    const amt = prompt(`Payment amount for ${borrowerName}:`, '0');
-    const numAmt = parseFloat(amt);
-    
-    if (!numAmt || numAmt <= 0 || !borrowerId) {
-      alert('Invalid amount or borrower');
-      return;
-    }
+    btn.addEventListener('click', async (e) => {
+      const borrowerId = e.target.dataset.borrowerId;
+      const borrowerName = e.target.dataset.name;
+      const amt = prompt(`Payment amount for ${borrowerName}:`, '0');
+      const numAmt = parseFloat(amt);
+      
+      if (!numAmt || numAmt <= 0 || !borrowerId) {
+        alert('Invalid amount or borrower');
+        return;
+      }
 
-    // Log exact payload for debugging
-    const payload = { borrower_id: parseInt(borrowerId), amount: numAmt };
-    console.log('Sending payload:', payload);
+      const payload = { borrower_id: parseInt(borrowerId), amount: numAmt };
+      console.log('Sending payload:', payload);
 
-    const res = await fetchJSON(`${API_BASE}?route=borrower-payments`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(payload)
+      const res = await fetchJSON(`${API_BASE}?route=borrower-payments`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res && res.success) {
+        alert('Payment recorded successfully');
+        loadBorrowers();
+        loadDashboard();
+        loadBills();
+      } else {
+        console.error('Full response:', res);
+        alert(`Error: ${res?.error || 'Unknown error'}`);
+      }
     });
-
-    if (res && res.success) {
-      alert('Payment recorded successfully');
-      loadBorrowers();
-      loadDashboard();
-      loadBills();
-    } else {
-      console.error('Full response:', res);
-      alert(`Error: ${res?.error || 'Unknown error'}`);
-    }
   });
-});
-
 }
 
 // Load dashboard on page load
@@ -761,8 +736,3 @@ loadDashboard();
 </script>
 </body>
 </html>
-
-
-
-
-
