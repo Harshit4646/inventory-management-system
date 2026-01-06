@@ -256,13 +256,9 @@ document.querySelectorAll('nav a').forEach(a => {
     if (sec === 'stock') loadStock();
     if (sec === 'expired') loadExpired();
     if (sec === 'sales') {
-  loadSaleProducts();
-  // Only check edit mode if coming from outside sales or first load
-  if (document.querySelector('nav a.active').dataset.section !== 'sales' || !document.querySelector('#sales.active')) {
-    checkEditMode();
-  }
-}
-
+      loadSaleProducts();
+      checkEditMode();
+    }
     if (sec === 'bills') loadBills();
     if (sec === 'borrowers') loadBorrowers();
   });
@@ -513,45 +509,11 @@ function resetSaleForm() {
   document.getElementById('sale-customer').value = '';
   document.getElementById('sale-paid').value = '0';
   currentBillId = null;
-  isLoadingEditBill = false; // Add this line
+  isLoadingEditBill = false;
   recalcTotals();
 }
 
-
-// EDIT BILL FUNCTIONS
-async function editBill(saleId) {
-  if (isLoadingEditBill) return; // Prevent double-loading
-  
-  const data = await fetchJSON(`${API_BASE}?route=bill-detail&sale_id=${saleId}`);
-  if (!data || !data.sale) {
-    alert('Bill not found');
-    currentBillId = null;
-    return;
-  }
-
-  currentBillId = saleId;
-  
-  // Update UI for edit mode (idempotent - safe to call multiple times)
-  document.getElementById('sales-title').textContent = `Edit Bill #${data.sale.id}`;
-  document.getElementById('cancel-edit-btn').style.display = 'inline-block';
-  document.getElementById('sale-save').textContent = 'Update Bill';
-  
-  // Load form data
-  document.getElementById('sale-customer').value = data.sale.customer_name || '';
-  document.getElementById('sale-payment-type').value = data.sale.payment_type;
-  document.getElementById('sale-paid').value = Number(data.sale.paid_amount).toFixed(2);
-  
-  // Load items only if form is empty (prevents overwriting user changes)
-  const tbody = document.getElementById('sale-items-body');
-  if (tbody.children.length === 0) {
-    tbody.innerHTML = '';
-    data.items.forEach(item => addEditItem(item));
-  }
-  
-  recalcTotals();
-}
-
-
+// Add existing items when editing
 function addEditItem(item) {
   const tbody = document.getElementById('sale-items-body');
   const product = saleProducts.find(p => p.id == item.product_id);
@@ -580,61 +542,77 @@ function addEditItem(item) {
   });
 }
 
+// Load bill into New Sale for editing
+async function editBill(saleId) {
+  resetSaleForm();
+  currentBillId = saleId;
+
+  const data = await fetchJSON(`${API_BASE}?route=bill-detail&sale_id=${saleId}`);
+  if (!data || !data.sale) return;
+
+  document.getElementById('sales-title').textContent = `Edit Bill #${data.sale.id}`;
+  document.getElementById('cancel-edit-btn').style.display = 'inline-block';
+  document.getElementById('sale-save').textContent = 'Update Bill';
+
+  document.getElementById('sale-customer').value = data.sale.customer_name || '';
+  document.getElementById('sale-payment-type').value = data.sale.payment_type;
+  document.getElementById('sale-paid').value = Number(data.sale.paid_amount).toFixed(2);
+
+  data.items.forEach(addEditItem);
+  recalcTotals();
+}
+
 function checkEditMode() {
-  // Only auto-load if not already loading and in edit mode
   if (currentBillId && !isLoadingEditBill) {
     isLoadingEditBill = true;
     setTimeout(() => {
       editBill(currentBillId);
       isLoadingEditBill = false;
-    }, 100); // Small delay to prevent rapid re-trigger
+    }, 100);
   }
 }
 
-// Cancel Edit
 document.getElementById('cancel-edit-btn').addEventListener('click', () => {
   resetSaleForm();
-  // Switch back to bills if that's where we came from
   if (document.querySelector('nav a.active').dataset.section === 'sales') {
     document.querySelector('a[data-section="bills"]').click();
   }
 });
 
-
 // --- SALES BILLS ---
 async function loadBills() {
-  const data = await fetchJSON(`${API_BASE}?route=sales`);
-  if (!data) return;
+  const bills = await fetchJSON(`${API_BASE}?route=bills`);
+  if (!bills) return;
+
   const tbody = document.getElementById('bills-table-body');
+  if (!tbody) return;
   tbody.innerHTML = '';
-  data.forEach(row => {
+
+  bills.forEach(bill => {
     const tr = document.createElement('tr');
-    const pillClass = row.payment_type.toLowerCase();
     tr.innerHTML = `
-      <td>${row.date}</td>
-      <td>${row.customer_name || ''}</td>
-      <td><span class="pill ${pillClass}">${row.payment_type}</span></td>
-      <td>₹${Number(row.total_amount).toFixed(2)}</td>
-      <td>₹${Number(row.paid_amount).toFixed(2)}</td>
-      <td>₹${Number(row.borrow_amount || 0).toFixed(2)}</td>
+      <td>${bill.sale_date || ''}</td>
+      <td>${bill.customer_name || 'Walk-in'}</td>
+      <td>${bill.payment_type}</td>
+      <td>₹${Number(bill.total_amount).toFixed(2)}</td>
+      <td>₹${Number(bill.paid_amount).toFixed(2)}</td>
+      <td>₹${Number(bill.borrow_amount || 0).toFixed(2)}</td>
       <td class="actions">
-        <button class="edit-btn btn-warning" data-sale-id="${row.id}">Edit</button>
-        <button class="view-btn btn-primary" data-sale-id="${row.id}">View</button>
+        <button class="view-btn btn-secondary" data-sale-id="${bill.id}">View</button>
       </td>
     `;
     tbody.appendChild(tr);
   });
 
-  // Event listeners
-  document.querySelectorAll('.edit-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => editBill(e.target.dataset.saleId));
-  });
-  
   document.querySelectorAll('.view-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => showBillDetail(e.target.dataset.saleId));
+    btn.addEventListener('click', (e) => {
+      const saleId = e.target.dataset.saleId;
+      showBillDetail(saleId);
+    });
   });
 }
 
+// --- BILL DETAIL POPUP ---
 async function showBillDetail(saleId) {
   const data = await fetchJSON(`${API_BASE}?route=bill-detail&sale_id=${saleId}`);
   if (!data) return;
@@ -669,6 +647,14 @@ document.getElementById('close-bill-detail').addEventListener('click', () => {
   document.getElementById('bill-detail-container').style.display = 'none';
 });
 
+document.getElementById('edit-bill-btn').addEventListener('click', async () => {
+  if (!currentBillId) return;
+  document.querySelector('a[data-section="sales"]').click();
+  await loadSaleProducts();
+  editBill(currentBillId);
+  document.getElementById('bill-detail-container').style.display = 'none';
+});
+
 document.getElementById('delete-bill-btn').addEventListener('click', async () => {
   if (!currentBillId || !confirm('Delete this bill? This will restore stock.')) return;
   
@@ -684,6 +670,8 @@ document.getElementById('delete-bill-btn').addEventListener('click', async () =>
     loadBills();
     loadStock();
     loadDashboard();
+  } else {
+    alert('Error deleting bill');
   }
 });
 
@@ -707,42 +695,40 @@ async function loadBorrowers() {
   });
 
   document.querySelectorAll('.pay-btn').forEach(btn => {
-  btn.addEventListener('click', async (e) => {
-    const borrowerId = e.target.dataset.borrowerId;
-    const borrowerName = e.target.dataset.name;
-    const amt = prompt(`Payment amount for ${borrowerName}:`, '0');
-    const numAmt = parseFloat(amt);
-    
-    if (!numAmt || numAmt <= 0 || !borrowerId) {
-      alert('Invalid amount or borrower');
-      return;
-    }
+    btn.addEventListener('click', async (e) => {
+      const borrowerId = e.target.dataset.borrowerId;
+      const borrowerName = e.target.dataset.name;
+      const amt = prompt(`Payment amount for ${borrowerName}:`, '0');
+      const numAmt = parseFloat(amt);
+      
+      if (!numAmt || numAmt <= 0 || !borrowerId) {
+        alert('Invalid amount or borrower');
+        return;
+      }
 
-    // Log exact payload for debugging
-    const payload = { borrower_id: parseInt(borrowerId), amount: numAmt };
-    console.log('Sending payload:', payload);
+      const payload = { borrower_id: parseInt(borrowerId), amount: numAmt };
+      console.log('Sending payload:', payload);
 
-    const res = await fetchJSON(`${API_BASE}?route=borrower-payments`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(payload)
+      const res = await fetchJSON(`${API_BASE}?route=borrower-payments`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res && res.success) {
+        alert('Payment recorded successfully');
+        loadBorrowers();
+        loadDashboard();
+        loadBills();
+      } else {
+        console.error('Full response:', res);
+        alert(`Error: ${res?.error || 'Unknown error'}`);
+      }
     });
-
-    if (res && res.success) {
-      alert('Payment recorded successfully');
-      loadBorrowers();
-      loadDashboard();
-      loadBills();
-    } else {
-      console.error('Full response:', res);
-      alert(`Error: ${res?.error || 'Unknown error'}`);
-    }
   });
-});
-
 }
 
 // Load dashboard on page load
@@ -750,8 +736,3 @@ loadDashboard();
 </script>
 </body>
 </html>
-
-
-
-
-
