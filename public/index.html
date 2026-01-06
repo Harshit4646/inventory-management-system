@@ -520,35 +520,37 @@ function resetSaleForm() {
 
 // EDIT BILL FUNCTIONS
 async function editBill(saleId) {
-  if (isLoadingEditBill) return; // Prevent double-loading
-  
-  const data = await fetchJSON(`${API_BASE}?route=bill-detail&sale_id=${saleId}`);
-  if (!data || !data.sale) {
-    alert('Bill not found');
-    currentBillId = null;
-    return;
-  }
+  resetSaleForm(); // 🔥 VERY IMPORTANT
 
-  currentBillId = saleId;
-  
-  // Update UI for edit mode (idempotent - safe to call multiple times)
-  document.getElementById('sales-title').textContent = `Edit Bill #${data.sale.id}`;
-  document.getElementById('cancel-edit-btn').style.display = 'inline-block';
-  document.getElementById('sale-save').textContent = 'Update Bill';
-  
-  // Load form data
-  document.getElementById('sale-customer').value = data.sale.customer_name || '';
-  document.getElementById('sale-payment-type').value = data.sale.payment_type;
-  document.getElementById('sale-paid').value = Number(data.sale.paid_amount).toFixed(2);
-  
-  // Load items only if form is empty (prevents overwriting user changes)
-  const tbody = document.getElementById('sale-items-body');
-  if (tbody.children.length === 0) {
-    tbody.innerHTML = '';
-    data.items.forEach(item => addEditItem(item));
-  }
-  
-  recalcTotals();
+  isEdit = true;
+  editingSaleId = saleId;
+
+  const res = await fetch(`/api/server?route=bill-detail&sale_id=${saleId}`);
+  const data = await res.json();
+
+  if (!data || !data.sale) return;
+
+  document.getElementById('customer-name').value =
+    data.sale.customer_name || '';
+
+  document.getElementById('payment-type').value =
+    data.sale.payment_type;
+
+  document.getElementById('paid-amount').value =
+    data.sale.paid_amount || 0;
+
+  cart = [];
+
+  data.items.forEach(item => {
+    cart.push({
+      product_id: item.product_id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity
+    });
+  });
+
+  renderCart();
 }
 
 
@@ -603,37 +605,46 @@ document.getElementById('cancel-edit-btn').addEventListener('click', () => {
 
 // --- SALES BILLS ---
 async function loadBills() {
-  const data = await fetchJSON(`${API_BASE}?route=sales`);
-  if (!data) return;
-  const tbody = document.getElementById('bills-table-body');
+  const res = await fetch('/api/server?route=bills');
+  const bills = await res.json();
+
+  const tbody = document.querySelector('#bills-table tbody');
   tbody.innerHTML = '';
-  data.forEach(row => {
+
+  bills.forEach(bill => {
     const tr = document.createElement('tr');
-    const pillClass = row.payment_type.toLowerCase();
+
     tr.innerHTML = `
-      <td>${row.date}</td>
-      <td>${row.customer_name || ''}</td>
-      <td><span class="pill ${pillClass}">${row.payment_type}</span></td>
-      <td>₹${Number(row.total_amount).toFixed(2)}</td>
-      <td>₹${Number(row.paid_amount).toFixed(2)}</td>
-      <td>₹${Number(row.borrow_amount || 0).toFixed(2)}</td>
-      <td class="actions">
-        <button class="edit-btn btn-warning" data-sale-id="${row.id}">Edit</button>
-        <button class="view-btn btn-primary" data-sale-id="${row.id}">View</button>
+      <td>${bill.id}</td>
+      <td>${bill.customer_name || '-'}</td>
+      <td>${bill.total_amount}</td>
+      <td>${bill.payment_type}</td>
+      <td>
+        <button class="edit-btn" data-sale-id="${bill.id}">Edit</button>
       </td>
     `;
+
     tbody.appendChild(tr);
   });
 
-  // Event listeners
+  // 🔥 FIX: switch to SALES section before editing
   document.querySelectorAll('.edit-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => editBill(e.target.dataset.saleId));
-  });
-  
-  document.querySelectorAll('.view-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => showBillDetail(e.target.dataset.saleId));
+    btn.addEventListener('click', async (e) => {
+      const saleId = e.target.dataset.saleId;
+
+      // activate sales tab
+      document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+      document.querySelector('a[data-section="sales"]').classList.add('active');
+
+      document.querySelectorAll('main section').forEach(sec => sec.classList.remove('active'));
+      document.getElementById('sales').classList.add('active');
+
+      await loadSaleProducts();   // ensure products loaded
+      editBill(saleId);           // load bill data
+    });
   });
 }
+
 
 async function showBillDetail(saleId) {
   const data = await fetchJSON(`${API_BASE}?route=bill-detail&sale_id=${saleId}`);
@@ -750,6 +761,7 @@ loadDashboard();
 </script>
 </body>
 </html>
+
 
 
 
