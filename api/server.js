@@ -109,16 +109,21 @@ async function syncBorrowerOutstanding(client, borrowerName) {
   const totalBorrow = Number(borrowSumRes.rows[0].total_borrow);
 
   if (totalBorrow <= 0) {
-    await client.query(
-      `DELETE FROM borrowers WHERE id = $1`,
-      [borrowerId]
-    );
-  } else {
-    await client.query(
-      `UPDATE borrowers SET outstanding_amount = $1 WHERE id = $2`,
-      [totalBorrow, borrowerId]
-    );
-  }
+  await client.query(
+    `UPDATE borrowers
+     SET outstanding_amount = 0
+     WHERE id = $1`,
+    [borrowerId]
+  );
+} else {
+  await client.query(
+    `UPDATE borrowers
+     SET outstanding_amount = $1
+     WHERE id = $2`,
+    [totalBorrow, borrowerId]
+  );
+}
+
 }
 
 // main handler
@@ -663,3 +668,4 @@ app.all("/api/server", async (req, res) => {
 });
 
 export default app;
+
