@@ -575,26 +575,6 @@ app.all("/api/server", async (req, res) => {
       }
     }
 
-        /* ------------ BILLS (LIST) ------------ */
-    if (route === "bills" && req.method === "GET") {
-      const rows = (
-        await query(
-          `SELECT
-             id,
-             sale_date,
-             customer_name,
-             payment_type,
-             total_amount,
-             paid_amount,
-             borrow_amount
-           FROM sales
-           ORDER BY sale_date DESC, id DESC`
-        )
-      ).rows;
-      return res.json(rows);
-    }
-
-
     /* ------------ BORROWERS & PAYMENTS ------------ */
     if (route === "borrowers" && req.method === "GET") {
       const rows = (
@@ -688,5 +668,3 @@ app.all("/api/server", async (req, res) => {
 });
 
 export default app;
-
-
