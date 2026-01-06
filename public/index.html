@@ -257,7 +257,7 @@ document.querySelectorAll('nav a').forEach(a => {
     if (sec === 'expired') loadExpired();
     if (sec === 'sales') {
       loadSaleProducts();
-      checkEditMode();
+      // no automatic checkEditMode to avoid duplicate editBill calls
     }
     if (sec === 'bills') loadBills();
     if (sec === 'borrowers') loadBorrowers();
@@ -562,16 +562,10 @@ async function editBill(saleId) {
   recalcTotals();
 }
 
-function checkEditMode() {
-  if (currentBillId && !isLoadingEditBill) {
-    isLoadingEditBill = true;
-    setTimeout(() => {
-      editBill(currentBillId);
-      isLoadingEditBill = false;
-    }, 100);
-  }
-}
+// no auto edit mode
+function checkEditMode() {}
 
+// Cancel Edit
 document.getElementById('cancel-edit-btn').addEventListener('click', () => {
   resetSaleForm();
   if (document.querySelector('nav a.active').dataset.section === 'sales') {
