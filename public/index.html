@@ -177,7 +177,7 @@
       <span id="sale-total" style="font-size: 18px; font-weight: bold;">₹0.00</span>
     </div>
     <div class="form-row">
-      <lable>Discount</lable>
+      <lable>Discount:</lable>
       <input id="sale-discount" type="number" step="0.01" value="0" min="0">
     </div>
     <div class="form-row">
@@ -212,6 +212,7 @@
           <th>Customer</th>
           <th>Payment Type</th>
           <th>Total</th>
+          <th>Discount</th>
           <th>Paid</th>
           <th>Borrow</th>
           <th>Actions</th>
@@ -382,7 +383,7 @@ function recalcTotals() {
   const paid = parseFloat(document.getElementById('sale-paid').value) || 0;
   let remaining = total - discount - paid;
   if (remaining < 0) {
-    document.getElementById('sale-paid').value = total.toFixed(2);
+    document.getElementById('sale-paid').value = total.toFixed(2) - discount.toFixed(2);
     remaining = 0;
   }
   document.getElementById('sale-remaining').textContent = `₹${remaining.toFixed(2)}`;
@@ -516,6 +517,7 @@ function resetSaleForm() {
   document.getElementById('sale-save').textContent = 'Save Sale';
   document.getElementById('sale-items-body').innerHTML = '';
   document.getElementById('sale-customer').value = '';
+  document.getElementById('sale-discount').value = '0';
   document.getElementById('sale-paid').value = '0';
   currentBillId = null;
   isLoadingEditBill = false;
@@ -599,6 +601,7 @@ async function loadBills() {
       <td>${bill.customer_name || 'Walk-in'}</td>
       <td>${bill.payment_type}</td>
       <td>₹${Number(bill.total_amount).toFixed(2)}</td>
+      <td>₹${Number(bill.discount_amount).toFixed(2)}</td>
       <td>₹${Number(bill.paid_amount).toFixed(2)}</td>
       <td>₹${Number(bill.borrow_amount || 0).toFixed(2)}</td>
       <td class="actions">
@@ -632,6 +635,7 @@ async function showBillDetail(saleId) {
     <p><strong>Customer:</strong> ${data.sale.customer_name || 'Walk-in'}</p>
     <p><strong>Payment Type:</strong> <span class="pill ${data.sale.payment_type.toLowerCase()}">${data.sale.payment_type}</span></p>
     <p><strong>Total:</strong> ₹${Number(data.sale.total_amount).toFixed(2)}</p>
+    <p><strong>Discount:</strong> ₹${Number(data.sale.Discount_amount).toFixed(2)}</p>
     <p><strong>Paid:</strong> ₹${Number(data.sale.paid_amount).toFixed(2)}</p>
     <p><strong>Balance:</strong> ₹${Number(data.sale.borrow_amount).toFixed(2)}</p>
     <h5>Items:</h5>
@@ -741,6 +745,7 @@ document.getElementById('print-bill-btn').addEventListener('click', () => {
 
       <div class="totals">
         <p><strong>Total:</strong> ₹${Number(sale.total_amount).toFixed(2)}</p>
+        <p><strong>Discount:</strong> ₹${Number(sale.Discount_amount).toFixed(2)}</p>
         <p><strong>Paid:</strong> ₹${Number(sale.paid_amount).toFixed(2)}</p>
         <p><strong>Balance:</strong> ₹${Number(sale.borrow_amount).toFixed(2)}</p>
       </div>
@@ -817,5 +822,6 @@ loadDashboard();
 </script>
 </body>
 </html>
+
 
 
