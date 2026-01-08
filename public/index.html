@@ -40,6 +40,11 @@
     .actions { white-space: nowrap; }
     .edit-btn, .delete-btn, .view-btn { font-size: 12px; padding: 4px 8px; margin: 0 2px; }
     .bill-detail { background: #e9ecef; padding: 15px; margin: 10px 0; border-radius: 6px; }
+    /* Bills filter + totals */
+    .bills-filter-bar { margin: 10px 0; padding: 10px; background: #fff; border-radius: 6px; }
+    .bills-filter-bar label { width: auto; margin-right: 8px; }
+    .bills-totals { margin-top: 10px; padding: 10px; background: #fff; border-radius: 6px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .bills-totals div { min-width: 140px; }
   </style>
 </head>
 <body>
@@ -195,6 +200,30 @@
   <!-- SALES BILLS -->
   <section id="bills">
     <h2>Sales Bills</h2>
+
+    <!-- FILTER BAR -->
+    <div class="bills-filter-bar">
+      <label for="bill-filter-type">Filter:</label>
+      <select id="bill-filter-type">
+        <option value="ALL">All</option>
+        <option value="MONTH">Month</option>
+        <option value="DAY">Day</option>
+      </select>
+      <span id="bill-filter-inputs">
+        <!-- For MONTH -->
+        <span id="bill-filter-month-wrapper" style="display:none;">
+          <label for="bill-filter-month">Month:</label>
+          <input type="month" id="bill-filter-month">
+        </span>
+        <!-- For DAY -->
+        <span id="bill-filter-day-wrapper" style="display:none;">
+          <label for="bill-filter-day">Date:</label>
+          <input type="date" id="bill-filter-day">
+        </span>
+      </span>
+      <button id="bill-filter-apply" class="btn-primary">Apply</button>
+    </div>
+
     <div id="bill-detail-container" style="display: none;">
       <h3>Bill Details</h3>
       <div id="bill-detail" class="bill-detail"></div>
@@ -220,6 +249,14 @@
       </thead>
       <tbody id="bills-table-body"></tbody>
     </table>
+
+    <!-- TOTALS FOR CURRENT FILTER -->
+    <div class="bills-totals">
+      <div><strong>Total Cash:</strong> ₹<span id="bills-total-cash">0.00</span></div>
+      <div><strong>Total Online:</strong> ₹<span id="bills-total-online">0.00</span></div>
+      <div><strong>Total Borrow (Sales):</strong> ₹<span id="bills-total-borrow">0.00</span></div>
+      <div><strong>Total Borrower Payments:</strong> ₹<span id="bills-total-borrower-payments">0.00</span></div>
+    </div>
   </section>
 
   <!-- BORROWERS -->
@@ -246,6 +283,14 @@ const API_BASE = '/api/server';
 function showMsg(el, msg, type = 'success') {
   el.innerHTML = `<div class="msg ${type}">${msg}</div>`;
   setTimeout(() => el.innerHTML = '', 5000);
+}
+
+// Helper: format only date from value (string or Date)
+function formatOnlyDate(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return value;
+  return d.toLocaleDateString('en-GB'); // DD/MM/YYYY [web:15]
 }
 
 // --- NAVIGATION ---
@@ -308,7 +353,7 @@ async function loadStock() {
     const tr = document.createElement('tr');
     const exp = new Date(row.expiry_date);
     if ((exp - today) / (1000 * 60 * 60 * 24) <= 7) tr.classList.add('near-expiry');
-    tr.innerHTML = `<td>${row.name}</td><td>₹${Number(row.price).toFixed(2)}</td><td>${row.expiry_date}</td><td>${row.quantity}</td>`;
+    tr.innerHTML = `<td>${row.name}</td><td>₹${Number(row.price).toFixed(2)}</td><td>${formatOnlyDate(row.expiry_date)}</td><td>${row.quantity}</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -352,7 +397,7 @@ async function loadExpired() {
   data.forEach(row => {
     const tr = document.createElement('tr');
     tr.classList.add('expired');
-    tr.innerHTML = `<td>${row.name}</td><td>₹${Number(row.price).toFixed(2)}</td><td>${row.expiry_date}</td><td>${row.expired_date}</td><td>${row.quantity}</td>`;
+    tr.innerHTML = `<td>${row.name}</td><td>₹${Number(row.price).toFixed(2)}</td><td>${formatOnlyDate(row.expiry_date)}</td><td>${formatOnlyDate(row.expired_date)}</td><td>${row.quantity}</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -383,7 +428,7 @@ function recalcTotals() {
   const paid = parseFloat(document.getElementById('sale-paid').value) || 0;
   let remaining = total - discount - paid;
   if (remaining < 0) {
-    document.getElementById('sale-paid').value = total.toFixed(2) - discount.toFixed(2);
+    document.getElementById('sale-paid').value = (total - discount).toFixed(2);
     remaining = 0;
   }
   document.getElementById('sale-remaining').textContent = `₹${remaining.toFixed(2)}`;
@@ -395,7 +440,7 @@ function handleProductChange(e) {
   const product = saleProducts.find(p => p.id === id);
   if (product) {
     tr.querySelector('.sale-price').textContent = `₹${Number(product.price).toFixed(2)}`;
-    tr.querySelector('.sale-expiry').textContent = product.expiry_date;
+    tr.querySelector('.sale-expiry').textContent = formatOnlyDate(product.expiry_date);
   } else {
     tr.querySelector('.sale-price').textContent = '₹0.00';
     tr.querySelector('.sale-expiry').textContent = '';
@@ -418,7 +463,7 @@ document.getElementById('sale-add-item').addEventListener('click', () => {
   const tbody = document.getElementById('sale-items-body');
   const tr = document.createElement('tr');
   const options = saleProducts.map(p => 
-    `<option value="${p.id}">${p.name} | ₹${p.price} | Exp:${p.expiry_date} | Stock:${p.quantity}</option>`
+    `<option value="${p.id}">${p.name} | ₹${p.price} | Exp:${formatOnlyDate(p.expiry_date)} | Stock:${p.quantity}</option>`
   ).join('');
   
   tr.innerHTML = `
@@ -459,7 +504,7 @@ document.getElementById('sale-save').addEventListener('click', async () => {
   }
   if (paid > total - discount) {
     paid = total - discount;
-    document.getElementById('sale-paid').value = total.toFixed(2);
+    document.getElementById('sale-paid').value = (total - discount).toFixed(2);
   }
   if (paymentType === 'BORROW' && !customer) {
     showMsg(msgEl, 'Customer required for borrow', 'error');
@@ -534,7 +579,7 @@ function addEditItem(item) {
   tr.innerHTML = `
     <td><select class="sale-product"><option value="${product.id}">${product.name}</option></select></td>
     <td class="sale-price">₹${Number(item.price).toFixed(2)}</td>
-    <td class="sale-expiry">${product.expiry_date || ''}</td>
+    <td class="sale-expiry">${formatOnlyDate(product.expiry_date || '')}</td>
     <td><input class="sale-qty" type="number" min="1" value="${item.quantity}" style="width:60px"></td>
     <td class="sale-line-total">₹${(item.price * item.quantity).toFixed(2)}</td>
     <td><button class="sale-remove btn-danger" style="font-size:12px;padding:2px 6px;">X</button></td>
@@ -586,18 +631,44 @@ document.getElementById('cancel-edit-btn').addEventListener('click', () => {
 });
 
 // --- SALES BILLS ---
-async function loadBills() {
-  const bills = await fetchJSON(`${API_BASE}?route=bills`);
-  if (!bills) return;
+// keep all bills in memory for filtering
+let allBills = [];
 
+function applyBillsFilterAndRender() {
+  const filterType = document.getElementById('bill-filter-type').value;
+  const monthVal = document.getElementById('bill-filter-month').value; // YYYY-MM
+  const dayVal = document.getElementById('bill-filter-day').value;     // YYYY-MM-DD
   const tbody = document.getElementById('bills-table-body');
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  bills.forEach(bill => {
+  let filtered = allBills.slice();
+
+  if (filterType === 'MONTH' && monthVal) {
+    const [year, month] = monthVal.split('-').map(Number);
+    filtered = allBills.filter(bill => {
+      if (!bill.sale_date) return false;
+      const d = new Date(bill.sale_date);
+      return d.getFullYear() === year && (d.getMonth() + 1) === month;
+    });
+  } else if (filterType === 'DAY' && dayVal) {
+    filtered = allBills.filter(bill => {
+      if (!bill.sale_date) return false;
+      // Compare only date part
+      const dStr = new Date(bill.sale_date).toISOString().slice(0, 10);
+      return dStr === dayVal;
+    });
+  }
+
+  let totalCash = 0;
+  let totalOnline = 0;
+  let totalBorrow = 0;
+  let totalBorrowerPayments = 0;
+
+  filtered.forEach(bill => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${bill.sale_date || ''}</td>
+      <td>${formatOnlyDate(bill.sale_date || '')}</td>
       <td>${bill.customer_name || 'Walk-in'}</td>
       <td>${bill.payment_type}</td>
       <td>₹${Number(bill.total_amount).toFixed(2)}</td>
@@ -609,6 +680,15 @@ async function loadBills() {
       </td>
     `;
     tbody.appendChild(tr);
+
+    if (bill.payment_type === 'CASH') {
+      totalCash += Number(bill.paid_amount || 0);
+    } else if (bill.payment_type === 'ONLINE') {
+      totalOnline += Number(bill.paid_amount || 0);
+    } else if (bill.payment_type === 'BORROW') {
+      totalBorrow += Number(bill.borrow_amount || 0);
+    }
+    totalBorrowerPayments += Number(bill.borrower_payment_amount || 0);
   });
 
   document.querySelectorAll('.view-btn').forEach(btn => {
@@ -617,7 +697,30 @@ async function loadBills() {
       showBillDetail(saleId);
     });
   });
+
+  document.getElementById('bills-total-cash').textContent = totalCash.toFixed(2);
+  document.getElementById('bills-total-online').textContent = totalOnline.toFixed(2);
+  document.getElementById('bills-total-borrow').textContent = totalBorrow.toFixed(2);
+  document.getElementById('bills-total-borrower-payments').textContent = totalBorrowerPayments.toFixed(2);
 }
+
+async function loadBills() {
+  const bills = await fetchJSON(`${API_BASE}?route=bills`);
+  if (!bills) return;
+  allBills = bills;
+  applyBillsFilterAndRender();
+}
+
+// handle filter UI changes
+document.getElementById('bill-filter-type').addEventListener('change', () => {
+  const type = document.getElementById('bill-filter-type').value;
+  document.getElementById('bill-filter-month-wrapper').style.display = (type === 'MONTH') ? 'inline-block' : 'none';
+  document.getElementById('bill-filter-day-wrapper').style.display = (type === 'DAY') ? 'inline-block' : 'none';
+});
+
+document.getElementById('bill-filter-apply').addEventListener('click', () => {
+  applyBillsFilterAndRender();
+});
 
 // --- BILL DETAIL POPUP ---
 async function showBillDetail(saleId) {
@@ -631,7 +734,7 @@ async function showBillDetail(saleId) {
   const detailEl = document.getElementById('bill-detail');
   
   detailEl.innerHTML = `
-    <h4>Bill #${data.sale.id} - ${data.sale.sale_date}</h4>
+    <h4>Bill #${data.sale.id} - ${formatOnlyDate(data.sale.sale_date)}</h4>
     <p><strong>Customer:</strong> ${data.sale.customer_name || 'Walk-in'}</p>
     <p><strong>Payment Type:</strong> <span class="pill ${data.sale.payment_type.toLowerCase()}">${data.sale.payment_type}</span></p>
     <p><strong>Total:</strong> ₹${Number(data.sale.total_amount).toFixed(2)}</p>
@@ -715,7 +818,7 @@ document.getElementById('print-bill-btn').addEventListener('click', () => {
     <body>
       <h2>Invoice / Bill</h2>
       <p><strong>Bill No:</strong> ${sale.id}</p>
-      <p><strong>Date:</strong> ${sale.sale_date}</p>
+      <p><strong>Date:</strong> ${formatOnlyDate(sale.sale_date)}</p>
       <p><strong>Customer:</strong> ${sale.customer_name || 'Walk-in'}</p>
       <p><strong>Payment Type:</strong> ${sale.payment_type}</p>
 
@@ -772,7 +875,7 @@ async function loadBorrowers() {
     tr.innerHTML = `
       <td><strong>${row.name}</strong></td>
       <td style="color: #dc3545; font-weight: bold;">₹${Number(row.outstanding_amount).toFixed(2)}</td>
-      <td>${new Date().toLocaleDateString()}</td>
+      <td>${formatOnlyDate(new Date())}</td>
       <td>
         <button class="pay-btn btn-success" data-borrower-id="${row.id}" data-name="${row.name}">Pay</button>
       </td>
@@ -822,8 +925,3 @@ loadDashboard();
 </script>
 </body>
 </html>
-
-
-
-
-
