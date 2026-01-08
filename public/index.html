@@ -635,7 +635,7 @@ async function showBillDetail(saleId) {
     <p><strong>Customer:</strong> ${data.sale.customer_name || 'Walk-in'}</p>
     <p><strong>Payment Type:</strong> <span class="pill ${data.sale.payment_type.toLowerCase()}">${data.sale.payment_type}</span></p>
     <p><strong>Total:</strong> ₹${Number(data.sale.total_amount).toFixed(2)}</p>
-    <p><strong>Discount:</strong> ₹${Number(data.sale.Discount_amount).toFixed(2)}</p>
+    <p><strong>Discount:</strong> ₹${Number(data.sale.discount_amount).toFixed(2)}</p>
     <p><strong>Paid:</strong> ₹${Number(data.sale.paid_amount).toFixed(2)}</p>
     <p><strong>Balance:</strong> ₹${Number(data.sale.borrow_amount).toFixed(2)}</p>
     <h5>Items:</h5>
@@ -745,7 +745,7 @@ document.getElementById('print-bill-btn').addEventListener('click', () => {
 
       <div class="totals">
         <p><strong>Total:</strong> ₹${Number(sale.total_amount).toFixed(2)}</p>
-        <p><strong>Discount:</strong> ₹${Number(sale.Discount_amount).toFixed(2)}</p>
+        <p><strong>Discount:</strong> ₹${Number(sale.discount_amount).toFixed(2)}</p>
         <p><strong>Paid:</strong> ₹${Number(sale.paid_amount).toFixed(2)}</p>
         <p><strong>Balance:</strong> ₹${Number(sale.borrow_amount).toFixed(2)}</p>
       </div>
@@ -822,6 +822,7 @@ loadDashboard();
 </script>
 </body>
 </html>
+
 
 
 
