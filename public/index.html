@@ -4,231 +4,292 @@
   <meta charset="UTF-8">
   <title>Inventory Management System</title>
   <style>
-/* ===== GLOBAL ===== */
+/* ================= GLOBAL ================= */
 * {
   box-sizing: border-box;
 }
 
 body {
-  font-family: "Segoe UI", Roboto, Arial, sans-serif;
   margin: 0;
-  background: #f1f4f9;
-  color: #333;
+  font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+  background: radial-gradient(circle at top, #1e3c72 0%, #0f2027 40%, #0b132b 100%);
+  min-height: 100vh;
+  color: #eaeaea;
 }
 
-/* ===== HEADER ===== */
+/* ================= HEADER ================= */
 header {
-  background: linear-gradient(135deg, #1e3c72, #2a5298);
-  padding: 14px 25px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  padding: 16px 30px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 nav a {
   color: #fff;
-  margin-right: 20px;
+  margin-right: 24px;
   text-decoration: none;
   font-weight: 600;
-  padding-bottom: 5px;
+  letter-spacing: 0.3px;
+  position: relative;
+  padding-bottom: 6px;
   transition: all 0.3s ease;
 }
 
-nav a:hover {
-  opacity: 0.85;
+nav a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  height: 3px;
+  background: linear-gradient(90deg, #ffd700, #ff8c00);
+  transition: width 0.3s ease;
+  border-radius: 5px;
 }
 
-nav a.active {
-  border-bottom: 3px solid #ffd700;
+nav a:hover::after,
+nav a.active::after {
+  width: 100%;
 }
 
-/* ===== MAIN ===== */
+/* ================= MAIN ================= */
 main {
-  padding: 25px;
+  padding: 30px;
 }
 
 section {
   display: none;
+  animation: fadeSlide 0.5s ease;
 }
 
 section.active {
   display: block;
 }
 
-/* ===== HEADINGS ===== */
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ================= HEADINGS ================= */
 h2 {
-  margin-top: 0;
+  color: #ffd700;
   margin-bottom: 15px;
-  color: #1e3c72;
 }
 
 h3 {
+  color: #bfc9ff;
   margin-top: 25px;
-  color: #555;
 }
 
-/* ===== DASHBOARD CARDS ===== */
+/* ================= DASHBOARD ================= */
 .flex {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 22px;
 }
 
 .card {
-  background: #fff;
-  padding: 18px;
-  border-radius: 10px;
-  min-width: 200px;
-  box-shadow: 0 6px 15px rgba(0,0,0,0.08);
-  transition: transform 0.2s ease;
+  background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
+  backdrop-filter: blur(14px);
+  border-radius: 18px;
+  padding: 20px;
+  min-width: 210px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255,255,255,0.2);
 }
 
 .card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-8px) scale(1.03);
+  box-shadow: 0 20px 45px rgba(0,0,0,0.6);
 }
 
-.card strong {
-  font-size: 15px;
-  color: #555;
-}
-
-/* ===== PILLS ===== */
-.pill {
-  display: inline-block;
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 12px;
+.card span {
+  font-size: 20px;
   font-weight: 700;
 }
 
-.pill.cash { background: #e6f4ea; color: #2e7d32; }
-.pill.online { background: #e3f2fd; color: #1565c0; }
-.pill.borrow { background: #fdecea; color: #c62828; }
+/* ================= PILLS ================= */
+.pill {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 30px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
 
-/* ===== FORMS ===== */
+.pill.cash {
+  background: linear-gradient(90deg, #43e97b, #38f9d7);
+  color: #003b2f;
+}
+
+.pill.online {
+  background: linear-gradient(90deg, #4facfe, #00f2fe);
+  color: #002f4b;
+}
+
+.pill.borrow {
+  background: linear-gradient(90deg, #fa709a, #fee140);
+  color: #4b1c00;
+}
+
+/* ================= FORMS ================= */
 .form-row {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 label {
   display: inline-block;
-  width: 150px;
+  width: 160px;
   font-weight: 600;
+  color: #ddd;
 }
 
 input, select {
-  padding: 8px 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.12);
+  color: #fff;
   font-size: 14px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  width: 220px;
 }
 
 input:focus, select:focus {
   outline: none;
-  border-color: #2a5298;
+  border-color: #ffd700;
+  box-shadow: 0 0 0 2px rgba(255,215,0,0.3);
 }
 
-/* ===== BUTTONS ===== */
+/* ================= BUTTONS ================= */
 button {
-  padding: 8px 14px;
-  border-radius: 6px;
-  cursor: pointer;
+  padding: 9px 16px;
+  border-radius: 10px;
   border: none;
-  font-weight: 600;
-  transition: all 0.2s ease;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  transition: all 0.25s ease;
 }
 
 button:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px) scale(1.05);
 }
 
-.btn-primary { background: #2a5298; color: #fff; }
-.btn-success { background: #2e7d32; color: #fff; }
-.btn-danger { background: #c62828; color: #fff; }
-.btn-warning { background: #f9a825; color: #000; }
-.btn-secondary { background: #6c757d; color: #fff; }
+.btn-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+}
 
-/* ===== TABLES ===== */
+.btn-success {
+  background: linear-gradient(135deg, #11998e, #38ef7d);
+  color: #003f2d;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ff416c, #ff4b2b);
+  color: #fff;
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #f7971e, #ffd200);
+  color: #3b2500;
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #485563, #29323c);
+  color: #fff;
+}
+
+/* ================= TABLES ================= */
 table {
-  border-collapse: collapse;
   width: 100%;
-  margin-top: 15px;
-  background: #fff;
-  border-radius: 8px;
+  border-collapse: collapse;
+  margin-top: 16px;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
 
 th {
-  background: #f5f7fb;
-  text-align: left;
+  background: rgba(255,255,255,0.18);
+  padding: 12px;
   font-size: 14px;
-  padding: 10px;
 }
 
 td {
-  padding: 9px 10px;
+  padding: 11px;
   font-size: 13.5px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid rgba(255,255,255,0.15);
+}
+
+tr {
+  transition: all 0.25s ease;
 }
 
 tr:hover td {
-  background: #f9fbff;
+  background: rgba(255,255,255,0.15);
 }
 
-/* ===== STATUS COLORS ===== */
-.near-expiry { background: #fff8e1; }
-.expired { background: #fdecea; }
+/* ================= STATUS ================= */
+.near-expiry {
+  background: rgba(255,193,7,0.25) !important;
+}
 
-/* ===== MESSAGES ===== */
+.expired {
+  background: rgba(220,53,69,0.3) !important;
+}
+
+/* ================= MESSAGES ================= */
 .msg {
-  padding: 10px;
-  margin: 10px 0;
-  border-radius: 6px;
-  font-weight: 600;
+  padding: 12px;
+  margin: 12px 0;
+  border-radius: 10px;
+  font-weight: 700;
 }
 
-.msg.success { background: #e6f4ea; color: #2e7d32; }
-.msg.error { background: #fdecea; color: #c62828; }
+.msg.success {
+  background: rgba(40,167,69,0.25);
+  color: #7CFFB2;
+}
 
-/* ===== BILL DETAIL ===== */
+.msg.error {
+  background: rgba(220,53,69,0.25);
+  color: #FF9C9C;
+}
+
+/* ================= BILL DETAILS ================= */
 .bill-detail {
-  background: #fff;
-  padding: 18px;
-  border-radius: 10px;
-  box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(14px);
+  padding: 20px;
+  border-radius: 18px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.6);
 }
 
-/* ===== FILTER BAR ===== */
-.bills-filter-bar {
-  background: #fff;
-  padding: 15px;
-  border-radius: 10px;
-  margin-bottom: 15px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-}
-
+/* ================= TOTALS ================= */
+.bills-filter-bar,
 .bills-totals {
-  background: #fff;
-  padding: 15px;
-  border-radius: 10px;
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(12px);
+  padding: 16px;
+  border-radius: 16px;
   margin-top: 15px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
-/* ===== ACTION BUTTONS ===== */
-.actions button {
-  font-size: 12px;
-  padding: 5px 10px;
-}
-
-/* ===== RESPONSIVE ===== */
+/* ================= RESPONSIVE ================= */
 @media (max-width: 768px) {
   label {
     width: 100%;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
   }
 
   input, select {
@@ -240,6 +301,7 @@ tr:hover td {
   }
 }
 </style>
+
 </head>
 <body>
 <header>
@@ -1119,5 +1181,6 @@ loadDashboard();
 </script>
 </body>
 </html>
+
 
 
