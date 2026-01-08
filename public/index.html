@@ -4,48 +4,242 @@
   <meta charset="UTF-8">
   <title>Inventory Management System</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; }
-    header { background: #222; color: #fff; padding: 10px 20px; }
-    nav a { color: #fff; margin-right: 15px; text-decoration: none; font-weight: bold; }
-    nav a.active { text-decoration: underline; }
-    main { padding: 20px; }
-    section { display: none; }
-    section.active { display: block; }
-    h2 { margin-top: 0; }
-    h3 { color: #666; }
-    table { border-collapse: collapse; width: 100%; margin-top: 10px; background: #fff; }
-    th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; text-align: left; }
-    th { background: #eee; }
-    .near-expiry { background: #fff3cd; }
-    .expired { background: #f8d7da; }
-    .form-row { margin-bottom: 8px; }
-    label { display: inline-block; width: 140px; font-weight: bold; }
-    input, select { padding: 5px; font-size: 14px; border: 1px solid #ddd; border-radius: 3px; }
-    button { padding: 6px 12px; margin: 4px 2px; cursor: pointer; border: none; border-radius: 3px; }
-    button:hover { opacity: 0.8; }
-    .btn-primary { background: #007bff; color: white; }
-    .btn-success { background: #28a745; color: white; }
-    .btn-danger { background: #dc3545; color: white; }
-    .btn-warning { background: #ffc107; color: #212529; }
-    .btn-secondary { background: #6c757d; color: white; }
-    .pill { display: inline-block; padding: 4px 8px; border-radius: 4px; margin-right: 6px; font-size: 12px; font-weight: bold; }
-    .pill.cash { background: #d4edda; color: #155724; }
-    .pill.online { background: #d1ecf1; color: #0c5460; }
-    .pill.borrow { background: #f8d7da; color: #721c24; }
-    .card { background: #fff; padding: 15px; margin: 10px 10px 10px 0; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-width: 180px; }
-    .flex { display: flex; flex-wrap: wrap; gap: 15px; }
-    .msg { padding: 8px; margin: 10px 0; border-radius: 4px; }
-    .msg.success { background: #d4edda; color: #155724; }
-    .msg.error { background: #f8d7da; color: #721c24; }
-    .actions { white-space: nowrap; }
-    .edit-btn, .delete-btn, .view-btn { font-size: 12px; padding: 4px 8px; margin: 0 2px; }
-    .bill-detail { background: #e9ecef; padding: 15px; margin: 10px 0; border-radius: 6px; }
-    /* Bills filter + totals */
-    .bills-filter-bar { margin: 10px 0; padding: 10px; background: #fff; border-radius: 6px; }
-    .bills-filter-bar label { width: auto; margin-right: 8px; }
-    .bills-totals { margin-top: 10px; padding: 10px; background: #fff; border-radius: 6px; display: flex; flex-wrap: wrap; gap: 10px; }
-    .bills-totals div { min-width: 140px; }
-  </style>
+/* ===== GLOBAL ===== */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  margin: 0;
+  background: #f1f4f9;
+  color: #333;
+}
+
+/* ===== HEADER ===== */
+header {
+  background: linear-gradient(135deg, #1e3c72, #2a5298);
+  padding: 14px 25px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+nav a {
+  color: #fff;
+  margin-right: 20px;
+  text-decoration: none;
+  font-weight: 600;
+  padding-bottom: 5px;
+  transition: all 0.3s ease;
+}
+
+nav a:hover {
+  opacity: 0.85;
+}
+
+nav a.active {
+  border-bottom: 3px solid #ffd700;
+}
+
+/* ===== MAIN ===== */
+main {
+  padding: 25px;
+}
+
+section {
+  display: none;
+}
+
+section.active {
+  display: block;
+}
+
+/* ===== HEADINGS ===== */
+h2 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #1e3c72;
+}
+
+h3 {
+  margin-top: 25px;
+  color: #555;
+}
+
+/* ===== DASHBOARD CARDS ===== */
+.flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.card {
+  background: #fff;
+  padding: 18px;
+  border-radius: 10px;
+  min-width: 200px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+  transition: transform 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+.card strong {
+  font-size: 15px;
+  color: #555;
+}
+
+/* ===== PILLS ===== */
+.pill {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pill.cash { background: #e6f4ea; color: #2e7d32; }
+.pill.online { background: #e3f2fd; color: #1565c0; }
+.pill.borrow { background: #fdecea; color: #c62828; }
+
+/* ===== FORMS ===== */
+.form-row {
+  margin-bottom: 12px;
+}
+
+label {
+  display: inline-block;
+  width: 150px;
+  font-weight: 600;
+}
+
+input, select {
+  padding: 8px 10px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  width: 220px;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: #2a5298;
+}
+
+/* ===== BUTTONS ===== */
+button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+.btn-primary { background: #2a5298; color: #fff; }
+.btn-success { background: #2e7d32; color: #fff; }
+.btn-danger { background: #c62828; color: #fff; }
+.btn-warning { background: #f9a825; color: #000; }
+.btn-secondary { background: #6c757d; color: #fff; }
+
+/* ===== TABLES ===== */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 15px;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+th {
+  background: #f5f7fb;
+  text-align: left;
+  font-size: 14px;
+  padding: 10px;
+}
+
+td {
+  padding: 9px 10px;
+  font-size: 13.5px;
+  border-top: 1px solid #eee;
+}
+
+tr:hover td {
+  background: #f9fbff;
+}
+
+/* ===== STATUS COLORS ===== */
+.near-expiry { background: #fff8e1; }
+.expired { background: #fdecea; }
+
+/* ===== MESSAGES ===== */
+.msg {
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.msg.success { background: #e6f4ea; color: #2e7d32; }
+.msg.error { background: #fdecea; color: #c62828; }
+
+/* ===== BILL DETAIL ===== */
+.bill-detail {
+  background: #fff;
+  padding: 18px;
+  border-radius: 10px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+}
+
+/* ===== FILTER BAR ===== */
+.bills-filter-bar {
+  background: #fff;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.bills-totals {
+  background: #fff;
+  padding: 15px;
+  border-radius: 10px;
+  margin-top: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+/* ===== ACTION BUTTONS ===== */
+.actions button {
+  font-size: 12px;
+  padding: 5px 10px;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  label {
+    width: 100%;
+    margin-bottom: 5px;
+  }
+
+  input, select {
+    width: 100%;
+  }
+
+  .flex {
+    flex-direction: column;
+  }
+}
+</style>
 </head>
 <body>
 <header>
@@ -925,4 +1119,5 @@ loadDashboard();
 </script>
 </body>
 </html>
+
 
