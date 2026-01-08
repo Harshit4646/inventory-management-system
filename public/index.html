@@ -687,8 +687,8 @@ function applyBillsFilterAndRender() {
       totalOnline += Number(bill.paid_amount || 0);
     } else if (bill.payment_type === 'BORROW') {
       totalBorrow += Number(bill.borrow_amount || 0);
+      totalBorrowerPayments += Number(bill.paid_amount || 0);
     }
-    totalBorrowerPayments += Number(bill.borrower_payment_amount || 0);
   });
 
   document.querySelectorAll('.view-btn').forEach(btn => {
@@ -925,3 +925,4 @@ loadDashboard();
 </script>
 </body>
 </html>
+
