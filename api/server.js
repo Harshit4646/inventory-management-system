@@ -315,7 +315,7 @@ const monthly_total = (
         }
 
         const borrow_amount =
-          payment_type === "BORROW" ? total_amount - paid_amount : 0;
+          payment_type === "BORROW" ? total_amount - discount_amount - paid_amount : 0;
 
         const client = await pool.connect();
         try {
@@ -697,6 +697,7 @@ const monthly_total = (
 });
 
 export default app;
+
 
 
 
