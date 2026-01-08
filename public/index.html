@@ -374,8 +374,9 @@ function recalcTotals() {
   });
   document.getElementById('sale-total').textContent = `₹${total.toFixed(2)}`;
   
+  const discount = parseFloat(document.getElementById('sale-discount').value) || 0;
   const paid = parseFloat(document.getElementById('sale-paid').value) || 0;
-  let remaining = total - paid;
+  let remaining = total - discount - paid;
   if (remaining < 0) {
     document.getElementById('sale-paid').value = total.toFixed(2);
     remaining = 0;
@@ -436,6 +437,7 @@ document.getElementById('sale-add-item').addEventListener('click', () => {
   });
 });
 
+document.getElementById('sale-discount').addEventListener('input', recalcTotals);
 document.getElementById('sale-paid').addEventListener('input', recalcTotals);
 
 document.getElementById('sale-save').addEventListener('click', async () => {
@@ -443,14 +445,15 @@ document.getElementById('sale-save').addEventListener('click', async () => {
   const customer = document.getElementById('sale-customer').value.trim();
   const paymentType = document.getElementById('sale-payment-type').value;
   const total = parseFloat(document.getElementById('sale-total').textContent.replace('₹', '')) || 0;
+  let discount = parseFloat(document.getElementById('sale-discount').value) || 0;
   let paid = parseFloat(document.getElementById('sale-paid').value) || 0;
 
   if (total <= 0) {
     showMsg(msgEl, 'Add at least one item', 'error');
     return;
   }
-  if (paid > total) {
-    paid = total;
+  if (paid > total - discount) {
+    paid = total - discount;
     document.getElementById('sale-paid').value = total.toFixed(2);
   }
   if (paymentType === 'BORROW' && !customer) {
@@ -481,6 +484,7 @@ document.getElementById('sale-save').addEventListener('click', async () => {
     customer_name: customer || null,
     payment_type: paymentType,
     total_amount: total,
+    discount_amount: discount,
     paid_amount: paid,
     items
   };
@@ -557,6 +561,7 @@ async function editBill(saleId) {
 
   document.getElementById('sale-customer').value = data.sale.customer_name || '';
   document.getElementById('sale-payment-type').value = data.sale.payment_type;
+  document.getElementById('sale-discount').value = Number(data.sale.discount_amount).toFixed(2);
   document.getElementById('sale-paid').value = Number(data.sale.paid_amount).toFixed(2);
 
   data.items.forEach(addEditItem);
@@ -808,3 +813,4 @@ loadDashboard();
 </script>
 </body>
 </html>
+
