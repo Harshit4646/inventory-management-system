@@ -110,21 +110,20 @@ async function syncBorrowerOutstanding(client, borrowerName) {
   const totalBorrow = Number(borrowSumRes.rows[0].total_borrow);
 
   if (totalBorrow <= 0) {
-  await client.query(
-    `UPDATE borrowers
-     SET outstanding_amount = 0
-     WHERE id = $1`,
-    [borrowerId]
-  );
-} else {
-  await client.query(
-    `UPDATE borrowers
-     SET outstanding_amount = $1
-     WHERE id = $2`,
-    [totalBorrow, borrowerId]
-  );
-}
-
+    await client.query(
+      `UPDATE borrowers
+       SET outstanding_amount = 0
+       WHERE id = $1`,
+      [borrowerId]
+    );
+  } else {
+    await client.query(
+      `UPDATE borrowers
+       SET outstanding_amount = $1
+       WHERE id = $2`,
+      [totalBorrow, borrowerId]
+    );
+  }
 }
 
 // main handler
@@ -140,25 +139,24 @@ app.all("/api/server", async (req, res) => {
       const monthStart = today.slice(0, 7) + "-01";
 
       const daily_total = (
-  await query(
-    `SELECT COALESCE(SUM(total_amount),0) AS daily_total
-     FROM sales
-     WHERE sale_date::date = $1
-       AND payment_type IN ('CASH','ONLINE')`,
-    [today]
-  )
-).rows[0].daily_total;
+        await query(
+          `SELECT COALESCE(SUM(total_amount),0) AS daily_total
+           FROM sales
+           WHERE sale_date::date = $1
+             AND payment_type IN ('CASH','ONLINE')`,
+          [today]
+        )
+      ).rows[0].daily_total;
 
-const monthly_total = (
-  await query(
-    `SELECT COALESCE(SUM(total_amount),0) AS monthly_total
-     FROM sales
-     WHERE sale_date::date BETWEEN $1 AND $2
-       AND payment_type IN ('CASH','ONLINE')`,
-    [monthStart, today]
-  )
-).rows[0].monthly_total;
-
+      const monthly_total = (
+        await query(
+          `SELECT COALESCE(SUM(total_amount),0) AS monthly_total
+           FROM sales
+           WHERE sale_date::date BETWEEN $1 AND $2
+             AND payment_type IN ('CASH','ONLINE')`,
+          [monthStart, today]
+        )
+      ).rows[0].monthly_total;
 
       const daily_cash = (
         await query(
@@ -299,7 +297,7 @@ const monthly_total = (
       if (req.method === "GET") {
         const rows = (
           await query(
-            `SELECT id, sale_date::date AS date, customer_name,
+            `SELECT id, sale_date, customer_name,  // FIXED: sale_date (no ::date AS date)
                     payment_type, total_amount, discount_amount, paid_amount, borrow_amount
              FROM sales
              ORDER BY sale_date DESC`
@@ -382,6 +380,20 @@ const monthly_total = (
       }
     }
 
+    /* ------------ BILLS (LIST) - FIXED for filter support ------------ */
+    if (route === "bills") {
+      const rows = (
+        await query(
+          `SELECT id, sale_date, customer_name, payment_type, 
+                  total_amount, discount_amount, paid_amount, borrow_amount,
+                  0.00 AS borrower_payment_amount  -- ADDED: for frontend compatibility (computed separately)
+           FROM sales 
+           ORDER BY sale_date DESC, id DESC`
+        )
+      ).rows;
+      return res.json(rows);
+    }
+
     /* ------------ VIEW BILL DETAIL ------------ */
     if (route === "bill-detail" && req.method === "GET") {
       const saleId = req.query.sale_id;
@@ -423,7 +435,7 @@ const monthly_total = (
         payment_type,
         discount_amount,
         paid_amount,
-        items, // full array: {sale_item_id or null, product_id, qty}
+        items,
       } = req.body;
 
       if (!sale_id || !items || !Array.isArray(items)) {
@@ -443,7 +455,6 @@ const monthly_total = (
         }
         const oldSale = saleRes.rows[0];
         const oldCustomer = oldSale.customer_name;
-        const oldPaymentType = oldSale.payment_type;
 
         // 1) restore stock from current sale_items
         const oldItemsRes = await client.query(
@@ -492,7 +503,7 @@ const monthly_total = (
           );
         }
 
-        // 4) update sale header (name, payment_type, paid_amount)
+        // 4) update sale header
         await client.query(
           `UPDATE sales
            SET customer_name = $1,
@@ -503,13 +514,13 @@ const monthly_total = (
           [customer_name, payment_type, discount_amount, paid_amount, sale_id]
         );
 
-        // 5) recompute total & borrow for this sale
+        // 5) recompute total & borrow
         const { total, borrow_amount } = await recomputeSaleTotals(
           client,
           sale_id
         );
 
-        // 6) sync borrowers for old and new customer if needed
+        // 6) sync borrowers
         if (oldCustomer && oldCustomer !== customer_name) {
           await syncBorrowerOutstanding(client, oldCustomer);
         }
@@ -518,7 +529,7 @@ const monthly_total = (
         }
 
         await client.query("COMMIT");
-        return res.json({ success: true, total, borrow_amount });
+        return res.json({ success: true });
       } catch (err) {
         await client.query("ROLLBACK");
         console.error("Edit bill error:", err);
@@ -583,29 +594,8 @@ const monthly_total = (
       }
     }
 
-        /* ------------ BILLS (LIST) ------------ */
-    if (route === "bills" && req.method === "GET") {
-      const rows = (
-        await query(
-          `SELECT
-             id,
-             sale_date,
-             customer_name,
-             payment_type,
-             total_amount,
-             discount_amount,
-             paid_amount,
-             borrow_amount
-           FROM sales
-           ORDER BY sale_date DESC, id DESC`
-        )
-      ).rows;
-      return res.json(rows);
-    }
-
-
     /* ------------ BORROWERS & PAYMENTS ------------ */
-    if (route === "borrowers" && req.method === "GET") {
+    if (route === "borrowers") {
       const rows = (
         await query(
           `SELECT id, name, outstanding_amount
@@ -638,8 +628,8 @@ const monthly_total = (
         const borrowerName = bRes.rows[0].name;
 
         await client.query(
-          `INSERT INTO borrower_payments (borrower_id, amount_paid)
-           VALUES ($1, $2)`,
+          `INSERT INTO borrower_payments (borrower_id, amount_paid, payment_date)
+           VALUES ($1, $2, NOW())`,
           [borrower_id, amount]
         );
 
@@ -697,8 +687,3 @@ const monthly_total = (
 });
 
 export default app;
-
-
-
-
-
