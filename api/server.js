@@ -69,16 +69,17 @@ async function recomputeSaleTotals(client, saleId) {
   }
 
   const saleRes = await client.query(
-    `SELECT payment_type, paid_amount FROM sales WHERE id = $1`,
+    `SELECT payment_type, discount_amount, paid_amount FROM sales WHERE id = $1`,
     [saleId]
   );
   const sale = saleRes.rows[0];
+  const discount = Number(sale.discount_amount);
   const paid = Number(sale.paid_amount);
   const paymentType = sale.payment_type;
 
   let borrow_amount = 0;
   if (paymentType === "BORROW") {
-    borrow_amount = total - paid;
+    borrow_amount = total - discount - paid;
     if (borrow_amount < 0) borrow_amount = 0;
   }
 
@@ -696,6 +697,7 @@ const monthly_total = (
 });
 
 export default app;
+
 
 
 
