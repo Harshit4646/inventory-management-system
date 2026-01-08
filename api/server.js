@@ -699,6 +699,3 @@ const monthly_total = (
 export default app;
 
 
-
-
-why borrow sale and borrow payment amount is empty
