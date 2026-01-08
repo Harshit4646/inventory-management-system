@@ -299,7 +299,7 @@ const monthly_total = (
         const rows = (
           await query(
             `SELECT id, sale_date::date AS date, customer_name,
-                    payment_type, total_amount, paid_amount, borrow_amount
+                    payment_type, total_amount, discount_amount, paid_amount, borrow_amount
              FROM sales
              ORDER BY sale_date DESC`
           )
@@ -308,7 +308,7 @@ const monthly_total = (
       }
 
       if (req.method === "POST") {
-        const { customer_name, payment_type, items, total_amount, paid_amount } = req.body;
+        const { customer_name, payment_type, items, total_amount, discount_amount, paid_amount } = req.body;
         if (!items || items.length === 0) {
           return res.status(400).json({ error: "No sale items" });
         }
@@ -322,10 +322,10 @@ const monthly_total = (
 
           const saleRes = await client.query(
             `INSERT INTO sales
-             (sale_date, customer_name, payment_type, total_amount, paid_amount, borrow_amount)
-             VALUES (NOW(), $1, $2, $3, $4, $5)
+             (sale_date, customer_name, payment_type, total_amount, discount_amount, paid_amount, borrow_amount)
+             VALUES (NOW(), $1, $2, $3, $4, $5, $6)
              RETURNING id`,
-            [customer_name, payment_type, total_amount, paid_amount, borrow_amount]
+            [customer_name, payment_type, total_amount, discount_amount, paid_amount, borrow_amount]
           );
           const saleId = saleRes.rows[0].id;
 
@@ -390,7 +390,7 @@ const monthly_total = (
 
       const saleRes = await query(
         `SELECT id, sale_date, customer_name, payment_type,
-                total_amount, paid_amount, borrow_amount
+                total_amount, discount_amount, paid_amount, borrow_amount
          FROM sales WHERE id = $1`,
         [saleId]
       );
@@ -420,6 +420,7 @@ const monthly_total = (
         sale_id,
         customer_name,
         payment_type,
+        discount_amount,
         paid_amount,
         items, // full array: {sale_item_id or null, product_id, qty}
       } = req.body;
@@ -495,9 +496,10 @@ const monthly_total = (
           `UPDATE sales
            SET customer_name = $1,
                payment_type = $2,
-               paid_amount = $3
-           WHERE id = $4`,
-          [customer_name, payment_type, paid_amount, sale_id]
+               discount_amount = $3,
+               paid_amount = $4
+           WHERE id = $5`,
+          [customer_name, payment_type, discount_amount, paid_amount, sale_id]
         );
 
         // 5) recompute total & borrow for this sale
@@ -590,6 +592,7 @@ const monthly_total = (
              customer_name,
              payment_type,
              total_amount,
+             discount_amount,
              paid_amount,
              borrow_amount
            FROM sales
@@ -693,5 +696,6 @@ const monthly_total = (
 });
 
 export default app;
+
 
 
