@@ -1,13 +1,13 @@
 import { neon } from '@neondatabase/serverless';
 
 export default async function handler(req, res) {
-  console.log('Neon driver + Aiven SASL');
+  console.log('Neon driver + Aiven');
 
-  const sql = neon(process.env.DATABASE_URL);  // Your SASL URI
+  const sql = neon(process.env.DATABASE_URL);
 
   try {
-    await sql`SELECT 1`;
-    console.log('✅ Connected');
+    const ping = await sql`SELECT 1`;
+    console.log('✅ Ping OK');
 
     const queries = [
       `CREATE TABLE IF NOT EXISTS products (
@@ -59,11 +59,11 @@ export default async function handler(req, res) {
     ];
 
     for (const [i, q] of queries.entries()) {
-      await sql[q];
-      console.log(`✅ Table ${i+1}/8`);
+      await sql`${q}`;  // FIXED: sql`${q}` (backticks!)
+      console.log(`✅ Table ${i+1}/7`);
     }
 
-    res.json({ success: true, message: "All tables created on Aiven!" });
+    res.json({ success: true, message: "Tables created!" });
   } catch (err) {
     console.error('Error:', err.message);
     res.status(500).json({ error: err.message });
