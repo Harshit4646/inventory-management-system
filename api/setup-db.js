@@ -1,14 +1,17 @@
 import pkg from "pg";
+import fs from "fs";
 const { Pool } = pkg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: {
+    rejectUnauthorized: true,
+    ca: process.env.PG_SSL_CA.replace(/\\n/g, "\n"), // ensure newlines
+  },
 });
 
 export default async function handler(req, res) {
   try {
-    // List of table creation queries
     const queries = [
       `CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
@@ -55,16 +58,14 @@ export default async function handler(req, res) {
         borrower_id INTEGER REFERENCES borrowers(id),
         amount_paid NUMERIC(10,2),
         payment_date TIMESTAMP DEFAULT NOW()
-      )`
+      )`,
     ];
 
-    for (const q of queries) {
-      await pool.query(q);
-    }
+    for (const q of queries) await pool.query(q);
 
     res.json({ success: true, message: "All tables created successfully" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "SSL Connection failed: " + err.message });
   }
 }
