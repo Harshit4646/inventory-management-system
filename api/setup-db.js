@@ -5,43 +5,33 @@ function readCaFromEnv() {
   const v = process.env.PG_CA;
   if (!v) return undefined;
 
-  // If user pasted PEM directly
   if (v.includes("BEGIN CERTIFICATE")) {
     return v.replace(/\\n/g, "\n");
   }
 
-  // Otherwise assume base64
   return Buffer.from(v, "base64").toString("utf8");
 }
 
-// Reuse pool across invocations (better for serverless)
 const pool =
   globalThis.__aivenPool ||
   (globalThis.__aivenPool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
-      rejectUnauthorized: true,
       ca: readCaFromEnv(),
     },
     max: 1,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
   }));
 
 export default async function handler(req, res) {
   try {
-    if (!process.env.DATABASE_URL) {
-      return res.status(500).json({ error: "DATABASE_URL missing in Vercel env vars" });
-    }
-    if (!process.env.PG_CA) {
-      return res.status(500).json({ error: "PG_CA missing (paste Aiven CA cert PEM or base64 ca.pem)" });
-    }
-
-    // Smoke test
+    // 1️⃣ Test connection
     await pool.query("SELECT 1");
 
+    // 2️⃣ Your SQL queries go here
     const queries = [
-      `CREATE TABLE IF NOT EXISTS products (
+       `CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         price NUMERIC(10,2) NOT NULL,
@@ -89,13 +79,16 @@ export default async function handler(req, res) {
       )`,
     ];
 
+    // 3️⃣ Execute queries
     for (const q of queries) {
       await pool.query(q);
     }
 
-    return res.json({ success: true, message: "All tables created successfully" });
+    // 4️⃣ Send response
+    res.json({ success: true, message: "Tables created" });
+
   } catch (err) {
-    console.error("DB error:", err);
-    return res.status(500).json({ error: err.message, code: err.code });
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 }
