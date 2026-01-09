@@ -1,11 +1,45 @@
 import pkg from "pg";
-import fs from "fs";
 const { Pool } = pkg;
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+export default async function handler(req, res) {
+  console.log('=== Aiven Debug ===');
+  console.log('DATABASE_URL length:', process.env.DATABASE_URL?.length || 0);
+  console.log('DB host/port in URL:', process.env.DATABASE_URL?.split('@')[1]?.split('/')[0]?.split(':')[0] || 'NOT FOUND');
+
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 30000,  // 30s timeout
+    statement_timeout: false,
+  });
+
+  try {
+    console.log('Attempting connection...');
+    const client = await pool.connect();
+    console.log('✅ CONNECTED');
+    
+    const ver = await client.query('SELECT version()');
+    console.log('Version:', ver.rows[0].version);
+    client.release();
+
+    // Create tables
+    const queries = [ /* your exact table array */ ];
+    for (let i = 0; i < queries.length; i++) {
+      await pool.query(queries[i]);
+      console.log(`Table ${i+1}/${queries.length} OK`);
+    }
+
+    res.json({ success: true, tables: queries.length });
+  } catch (err) {
+    console.error('ERROR CODE:', err.code);
+    console.error('ERROR DETAIL:', err.message);
+    console.error('STACK:', err.stack);
+    res.status(500).json({ error: err.message, code: err.code });
+  } finally {
+    await pool.end();
+  }
+}
+
 
 
 
