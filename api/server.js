@@ -3,19 +3,26 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import pkg from "pg";
-
-dotenv.config();
 const { Pool } = pkg;
+
+function getCa() {
+  return process.env.PG_CA?.replace(/\\n/g, "\n");
+}
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Postgres connection pool (serverless-safe if reused globally)
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+const pool =
+  globalThis.__pool ||
+  (globalThis.__pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      ca: getCa(),              // ✅ trust Aiven CA
+      rejectUnauthorized: true, // ✅ now SAFE
+    },
+    max: 1,
+  }));
 
 // Helper: simple query wrapper
 async function query(text, params) {
@@ -697,5 +704,6 @@ const monthly_total = (
 });
 
 export default app;
+
 
 
