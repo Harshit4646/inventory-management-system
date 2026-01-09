@@ -1,11 +1,20 @@
 import pkg from "pg";
 const { Pool } = pkg;
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: true, // ✅ REQUIRED FOR AIVEN
-  max: 1,
-});
+function getCa() {
+  return process.env.PG_CA?.replace(/\\n/g, "\n");
+}
+
+const pool =
+  globalThis.__pool ||
+  (globalThis.__pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      ca: getCa(),              // ✅ trust Aiven CA
+      rejectUnauthorized: true, // ✅ now SAFE
+    },
+    max: 1,
+  }));
 
 export default async function handler(req, res) {
   try {
