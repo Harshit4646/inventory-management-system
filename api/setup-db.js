@@ -1,16 +1,25 @@
-import { neon } from '@neondatabase/serverless';
+import pkg from "pg";
+const { Pool } = pkg;
 
 export default async function handler(req, res) {
-  console.log('Neon driver + Aiven');
+  console.log('pg + Aiven no-verify');
 
-  const sql = neon(process.env.DATABASE_URL);
+  const pool = new Pool({
+    host: "inventorysystem-patanjalidadri.j.aivencloud.com",
+    port: 22159,
+    user: "avnadmin",
+    password: process.env.password,
+    database: "default",
+    ssl: false,  // Disable SSL entirely
+    connect_timeout: 30,
+  });
 
   try {
-    const ping = await sql`SELECT 1`;
-    console.log('✅ Ping OK');
+    const ping = await pool.query('SELECT 1');
+    console.log('✅ pg ping OK');
 
     const queries = [
-      `CREATE TABLE IF NOT EXISTS products (
+       `CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         price NUMERIC(10,2) NOT NULL,
@@ -57,15 +66,16 @@ export default async function handler(req, res) {
         payment_date TIMESTAMP DEFAULT NOW()
       )`,
     ];
-
     for (const [i, q] of queries.entries()) {
-      await sql`${q}`;  // FIXED: sql`${q}` (backticks!)
-      console.log(`✅ Table ${i+1}/7`);
+      await pool.query(q);
+      console.log(`Table ${i+1} OK`);
     }
 
-    res.json({ success: true, message: "Tables created!" });
+    res.json({ success: true });
   } catch (err) {
-    console.error('Error:', err.message);
+    console.error('pg error:', err.message);
     res.status(500).json({ error: err.message });
+  } finally {
+    await pool.end();
   }
 }
