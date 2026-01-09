@@ -1,28 +1,11 @@
 import pkg from "pg";
 const { Pool } = pkg;
 
-function readCaFromEnv() {
-  const v = process.env.PG_CA;
-  if (!v) return undefined;
-
-  if (v.includes("BEGIN CERTIFICATE")) {
-    return v.replace(/\\n/g, "\n");
-  }
-
-  return Buffer.from(v, "base64").toString("utf8");
-}
-
-const pool =
-  globalThis.__aivenPool ||
-  (globalThis.__aivenPool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-      ca: readCaFromEnv(),
-    },
-    max: 1,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
-  }));
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: true, // ✅ REQUIRED FOR AIVEN
+  max: 1,
+});
 
 export default async function handler(req, res) {
   try {
