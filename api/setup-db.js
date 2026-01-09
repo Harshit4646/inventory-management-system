@@ -1,17 +1,13 @@
-import pkg from "pg";
-const { Pool } = pkg;
+import { neon } from '@neondatabase/serverless';
 
 export default async function handler(req, res) {
-  console.log('URL length:', process.env.DATABASE_URL?.length);
+  console.log('Neon driver + Aiven SASL');
 
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    connectionTimeoutMillis: 30000,
-  });
+  const sql = neon(process.env.DATABASE_URL);  // Your SASL URI
 
   try {
-    const ping = await pool.query('SELECT version()');
-    console.log('✅ Version:', ping.rows[0].version);
+    await sql`SELECT 1`;
+    console.log('✅ Connected');
 
     const queries = [
       `CREATE TABLE IF NOT EXISTS products (
@@ -61,14 +57,15 @@ export default async function handler(req, res) {
         payment_date TIMESTAMP DEFAULT NOW()
       )`,
     ];
+
     for (const [i, q] of queries.entries()) {
-      await pool.query(q);
-      console.log(`Table ${i+1} OK`);
+      await sql[q];
+      console.log(`✅ Table ${i+1}/8`);
     }
 
-    res.json({ success: true });
+    res.json({ success: true, message: "All tables created on Aiven!" });
   } catch (err) {
-    console.error('Code:', err.code, 'Message:', err.message);
+    console.error('Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 }
