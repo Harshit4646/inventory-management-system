@@ -1,25 +1,47 @@
 import pkg from "pg";
 const { Pool } = pkg;
 
+function readCaFromEnv() {
+  const v = process.env.PG_CA;
+  if (!v) return undefined;
+
+  // If user pasted PEM directly
+  if (v.includes("BEGIN CERTIFICATE")) {
+    return v.replace(/\\n/g, "\n");
+  }
+
+  // Otherwise assume base64
+  return Buffer.from(v, "base64").toString("utf8");
+}
+
+// Reuse pool across invocations (better for serverless)
+const pool =
+  globalThis.__aivenPool ||
+  (globalThis.__aivenPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: true,
+      ca: readCaFromEnv(),
+    },
+    max: 1,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+  }));
+
 export default async function handler(req, res) {
-  console.log('pg + Aiven no-verify');
-
-  const pool = new Pool({
-    host: "inventorysystem-patanjalidadri.j.aivencloud.com",
-    port: 22159,
-    user: "avnadmin",
-    password: process.env.password,
-    database: "default",
-    ssl: false,  // Disable SSL entirely
-    connect_timeout: 30,
-  });
-
   try {
-    const ping = await pool.query('SELECT 1');
-    console.log('✅ pg ping OK');
+    if (!process.env.DATABASE_URL) {
+      return res.status(500).json({ error: "DATABASE_URL missing in Vercel env vars" });
+    }
+    if (!process.env.PG_CA) {
+      return res.status(500).json({ error: "PG_CA missing (paste Aiven CA cert PEM or base64 ca.pem)" });
+    }
+
+    // Smoke test
+    await pool.query("SELECT 1");
 
     const queries = [
-       `CREATE TABLE IF NOT EXISTS products (
+      `CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         price NUMERIC(10,2) NOT NULL,
@@ -66,16 +88,14 @@ export default async function handler(req, res) {
         payment_date TIMESTAMP DEFAULT NOW()
       )`,
     ];
-    for (const [i, q] of queries.entries()) {
+
+    for (const q of queries) {
       await pool.query(q);
-      console.log(`Table ${i+1} OK`);
     }
 
-    res.json({ success: true });
+    return res.json({ success: true, message: "All tables created successfully" });
   } catch (err) {
-    console.error('pg error:', err.message);
-    res.status(500).json({ error: err.message });
-  } finally {
-    await pool.end();
+    console.error("DB error:", err);
+    return res.status(500).json({ error: err.message, code: err.code });
   }
 }
