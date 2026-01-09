@@ -2,18 +2,16 @@ import pkg from "pg";
 const { Pool } = pkg;
 
 export default async function handler(req, res) {
-  console.log('=== DEBUG START ===');
-  console.log('DATABASE_URL length:', process.env.DATABASE_URL?.length);
+  console.log('URL length:', process.env.DATABASE_URL?.length);
 
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
     connectionTimeoutMillis: 30000,
   });
 
   try {
-    const result = await pool.query('SELECT 1 AS ping');
-    console.log('✅ PING SUCCESS');
+    const ping = await pool.query('SELECT version()');
+    console.log('✅ Version:', ping.rows[0].version);
 
     const queries = [
       `CREATE TABLE IF NOT EXISTS products (
@@ -63,17 +61,14 @@ export default async function handler(req, res) {
         payment_date TIMESTAMP DEFAULT NOW()
       )`,
     ];
-
     for (const [i, q] of queries.entries()) {
       await pool.query(q);
-      console.log(`Table ${i+1} created`);
+      console.log(`Table ${i+1} OK`);
     }
 
-    res.json({ success: true, message: "Tables ready" });
+    res.json({ success: true });
   } catch (err) {
-    console.error('ERROR:', err.code, err.message);
+    console.error('Code:', err.code, 'Message:', err.message);
     res.status(500).json({ error: err.message });
-  } finally {
-    await pool.end();
   }
 }
