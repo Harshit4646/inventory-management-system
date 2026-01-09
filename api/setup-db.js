@@ -2,49 +2,19 @@ import pkg from "pg";
 const { Pool } = pkg;
 
 export default async function handler(req, res) {
-  console.log('=== Aiven Debug ===');
-  console.log('DATABASE_URL length:', process.env.DATABASE_URL?.length || 0);
-  console.log('DB host/port in URL:', process.env.DATABASE_URL?.split('@')[1]?.split('/')[0]?.split(':')[0] || 'NOT FOUND');
+  console.log('=== DEBUG START ===');
+  console.log('DATABASE_URL length:', process.env.DATABASE_URL?.length);
 
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 30000,  // 30s timeout
-    statement_timeout: false,
+    connectionTimeoutMillis: 30000,
   });
 
   try {
-    console.log('Attempting connection...');
-    const client = await pool.connect();
-    console.log('✅ CONNECTED');
-    
-    const ver = await client.query('SELECT version()');
-    console.log('Version:', ver.rows[0].version);
-    client.release();
+    const result = await pool.query('SELECT 1 AS ping');
+    console.log('✅ PING SUCCESS');
 
-    // Create tables
-    const queries = [ /* your exact table array */ ];
-    for (let i = 0; i < queries.length; i++) {
-      await pool.query(queries[i]);
-      console.log(`Table ${i+1}/${queries.length} OK`);
-    }
-
-    res.json({ success: true, tables: queries.length });
-  } catch (err) {
-    console.error('ERROR CODE:', err.code);
-    console.error('ERROR DETAIL:', err.message);
-    console.error('STACK:', err.stack);
-    res.status(500).json({ error: err.message, code: err.code });
-  } finally {
-    await pool.end();
-  }
-}
-
-
-
-
-export default async function handler(req, res) {
-  try {
     const queries = [
       `CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
@@ -94,11 +64,16 @@ export default async function handler(req, res) {
       )`,
     ];
 
-    for (const q of queries) await pool.query(q);
+    for (const [i, q] of queries.entries()) {
+      await pool.query(q);
+      console.log(`Table ${i+1} created`);
+    }
 
-    res.json({ success: true, message: "All tables created successfully" });
+    res.json({ success: true, message: "Tables ready" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "SSL Connection failed: " + err.message });
+    console.error('ERROR:', err.code, err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    await pool.end();
   }
 }
