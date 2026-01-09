@@ -3,12 +3,10 @@ import fs from "fs";
 const { Pool } = pkg;
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: true,
-    ca: process.env.PG_SSL_CA.replace(/\\n/g, "\n"), // ensure newlines
-  },
+  connectionString: process.env.DATABASE_URL + (process.env.DATABASE_URL.includes('?') ? '&' : '?') + 'sslmode=require',
+  ssl: { rejectUnauthorized: false },  // Allows Aiven self-signed CA in serverless
 });
+
 
 export default async function handler(req, res) {
   try {
