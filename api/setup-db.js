@@ -4,10 +4,7 @@ const { Pool } = pkg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: true,
-    ca: process.env.PGSSLROOTCERT ? Buffer.from(process.env.PGSSLROOTCERT, 'base64') : undefined
-  }
+  ssl: { rejectUnauthorized: false },
 });
 
 
