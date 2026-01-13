@@ -18,51 +18,50 @@ const pool =
 
 export default async function handler(req, res) {
   try {
-    // 1️⃣ Test connection
+    // 1️⃣ Test DB connection
     await pool.query("SELECT 1");
 
-    // 2️⃣ Query to see FULL database structure
-    const structureQuery = `
-      SELECT
-        t.table_name,
-        c.column_name,
-        c.data_type,
-        c.is_nullable,
-        c.column_default,
-        tc.constraint_type,
-        tc.constraint_name,
-        ccu.table_name AS referenced_table,
-        ccu.column_name AS referenced_column
-      FROM information_schema.tables t
-      JOIN information_schema.columns c
-        ON t.table_name = c.table_name
-        AND t.table_schema = c.table_schema
-      LEFT JOIN information_schema.key_column_usage kcu
-        ON c.table_name = kcu.table_name
-        AND c.column_name = kcu.column_name
-        AND c.table_schema = kcu.table_schema
-      LEFT JOIN information_schema.table_constraints tc
-        ON kcu.constraint_name = tc.constraint_name
-        AND kcu.table_schema = tc.table_schema
-      LEFT JOIN information_schema.constraint_column_usage ccu
-        ON tc.constraint_name = ccu.constraint_name
-        AND tc.table_schema = ccu.table_schema
-      WHERE t.table_schema = 'public'
-      ORDER BY t.table_name, c.ordinal_position;
-    `;
+    // 2️⃣ FIX ALL MISSING UNIQUE CONSTRAINTS
+    const fixQueries = [
 
-    // 3️⃣ Execute query
-    const result = await pool.query(structureQuery);
+      // 🔹 PRODUCTS: allow ON CONFLICT (name)
+      `
+      ALTER TABLE products
+      ADD CONSTRAINT IF NOT EXISTS unique_product_name
+      UNIQUE (name);
+      `,
 
-    // 4️⃣ Send structure as JSON
+      // 🔹 SALE ITEMS: allow ON CONFLICT (sale_id, product_id)
+      `
+      ALTER TABLE sale_items
+      ADD CONSTRAINT IF NOT EXISTS unique_sale_product
+      UNIQUE (sale_id, product_id);
+      `,
+
+      // 🔹 EXPIRED STOCK: allow ON CONFLICT (product_id, expired_date)
+      `
+      ALTER TABLE expired_stock
+      ADD CONSTRAINT IF NOT EXISTS unique_expired_product_date
+      UNIQUE (product_id, expired_date);
+      `
+    ];
+
+    // 3️⃣ Execute fixes
+    for (const q of fixQueries) {
+      await pool.query(q);
+    }
+
+    // 4️⃣ Return success
     res.json({
       success: true,
-      total_rows: result.rows.length,
-      structure: result.rows,
+      message: "ON CONFLICT error permanently fixed",
     });
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
   }
 }
