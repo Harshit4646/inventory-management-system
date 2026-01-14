@@ -4,37 +4,77 @@
   <meta charset="UTF-8">
   <title>Inventory Management System</title>
 <style>
-/* ================= GLOBAL POLISH ================= */
+/* ================= THEME ================= */
 :root {
-  --accent: #00ffd5;
-  --accent-2: #4facfe;
-  --danger: #ff4b2b;
-  --warning: #ffd200;
+  --bg1: #050816;
+  --bg2: #0b1c3d;
+  --primary: #00ffd5;
+  --secondary: #4facfe;
+  --danger: #ff416c;
   --success: #00ff9d;
-  --glass-bg: rgba(255,255,255,0.10);
-  --glass-border: rgba(255,255,255,0.22);
+  --glass: rgba(255,255,255,0.12);
+  --glass-border: rgba(255,255,255,0.28);
 }
 
+/* ================= RESET ================= */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ================= BACKGROUND (DYNAMIC) ================= */
 body {
-  line-height: 1.6;
-  letter-spacing: 0.3px;
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 20% 10%, #00ffd533, transparent 40%),
+    radial-gradient(circle at 80% 30%, #4facfe33, transparent 45%),
+    linear-gradient(135deg, var(--bg1), var(--bg2));
+  animation: bgShift 20s infinite alternate ease-in-out;
+}
+
+@keyframes bgShift {
+  from { background-position: 0% 0%, 100% 0%, 0% 0%; }
+  to { background-position: 100% 100%, 0% 100%, 100% 100%; }
 }
 
 /* ================= HEADER ================= */
 header {
-  background: rgba(5,11,30,0.75);
-  backdrop-filter: blur(22px);
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  backdrop-filter: blur(25px);
+  background: rgba(0,0,0,0.45);
+  box-shadow: 0 15px 40px rgba(0,0,0,0.7);
 }
 
 nav {
   display: flex;
-  gap: 28px;
-  align-items: center;
+  gap: 35px;
+  padding: 20px 40px;
 }
 
 nav a {
-  font-size: 14px;
-  opacity: 0.85;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  opacity: 0.6;
+  position: relative;
+  transition: 0.4s;
+}
+
+nav a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -8px;
+  width: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  border-radius: 10px;
+  transition: 0.4s;
 }
 
 nav a:hover,
@@ -42,158 +82,202 @@ nav a.active {
   opacity: 1;
 }
 
-/* ================= SECTION SPACING ================= */
+nav a:hover::after,
+nav a.active::after {
+  width: 100%;
+}
+
+/* ================= MAIN ================= */
 main {
-  max-width: 1400px;
+  padding: 40px;
+  max-width: 1500px;
   margin: auto;
 }
 
 section {
-  padding: 10px 0;
+  display: none;
+  animation: fadeUp 0.7s ease;
 }
 
-/* ================= CARDS ================= */
+section.active {
+  display: block;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(25px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ================= HEADINGS ================= */
+h2 {
+  font-size: 30px;
+  margin-bottom: 25px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ================= DASHBOARD ================= */
+.flex {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px,1fr));
+  gap: 28px;
+}
+
 .card {
-  flex: 1;
-  min-width: 240px;
-  border-radius: 26px;
+  position: relative;
+  padding: 30px;
+  border-radius: 28px;
+  background: var(--glass);
+  backdrop-filter: blur(25px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 25px 70px rgba(0,0,0,0.8);
+  transition: 0.4s;
 }
 
-.card strong {
-  font-size: 14px;
-  opacity: 0.9;
+.card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 28px;
+  background: linear-gradient(120deg, transparent, var(--primary), transparent);
+  opacity: 0;
+  transition: 0.4s;
+}
+
+.card:hover::before {
+  opacity: 0.6;
+}
+
+.card:hover {
+  transform: translateY(-12px) scale(1.05);
 }
 
 .card span {
-  font-size: 22px;
-  font-weight: 800;
-}
-
-/* ================= DASHBOARD HOVER ================= */
-.card:hover {
-  box-shadow: 0 35px 80px rgba(0,0,0,0.75);
+  font-size: 26px;
+  font-weight: 900;
 }
 
 /* ================= FORMS ================= */
 .form-row {
   display: flex;
+  gap: 18px;
   align-items: center;
-  gap: 14px;
+  margin-bottom: 18px;
+}
+
+label {
+  width: 160px;
+  opacity: 0.85;
 }
 
 input, select {
   flex: 1;
-  transition: all 0.25s ease;
-}
-
-input:hover, select:hover {
+  padding: 14px 16px;
+  border-radius: 18px;
   background: rgba(255,255,255,0.18);
+  border: none;
+  color: #fff;
+  font-size: 14px;
 }
 
-input::placeholder {
-  color: rgba(255,255,255,0.55);
+input:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--primary);
 }
 
 /* ================= BUTTONS ================= */
 button {
-  letter-spacing: 0.4px;
+  padding: 12px 22px;
+  border-radius: 18px;
+  border: none;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  transform: translateY(-4px) scale(1.08);
+  filter: brightness(1.15);
 }
 
 button:active {
-  transform: scale(0.96);
+  transform: scale(0.95);
 }
 
 .btn-primary {
-  box-shadow: 0 10px 30px rgba(102,126,234,0.45);
+  background: linear-gradient(135deg, #667eea, #764ba2);
 }
 
 .btn-success {
-  box-shadow: 0 10px 30px rgba(0,255,157,0.45);
+  background: linear-gradient(135deg, #00ffcc, #00ff9d);
+  color: #003f2f;
 }
 
 .btn-danger {
-  box-shadow: 0 10px 30px rgba(255,65,108,0.45);
+  background: linear-gradient(135deg, #ff416c, #ff4b2b);
 }
 
 .btn-warning {
-  box-shadow: 0 10px 30px rgba(247,151,30,0.45);
+  background: linear-gradient(135deg, #f7971e, #ffd200);
 }
 
 .btn-secondary {
-  box-shadow: 0 10px 30px rgba(72,85,99,0.45);
+  background: linear-gradient(135deg, #485563, #29323c);
 }
 
 /* ================= TABLE ================= */
 table {
-  margin-top: 24px;
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 22px;
+  overflow: hidden;
+  margin-top: 25px;
+  background: var(--glass);
 }
 
 th {
+  padding: 16px;
+  background: rgba(255,255,255,0.18);
   text-transform: uppercase;
   font-size: 12px;
-  letter-spacing: 0.6px;
 }
 
 td {
-  font-size: 14px;
+  padding: 15px;
+  border-top: 1px solid rgba(255,255,255,0.15);
 }
 
 tr:hover td {
-  background: rgba(79,172,254,0.12);
+  background: rgba(0,255,213,0.12);
 }
 
-/* ================= STATUS ROWS ================= */
+/* ================= STATUS ================= */
 .near-expiry {
-  background: rgba(255,193,7,0.22) !important;
+  background: rgba(255,193,7,0.35) !important;
 }
 
 .expired {
-  background: rgba(255,65,108,0.22) !important;
+  background: rgba(255,0,0,0.35) !important;
 }
 
 /* ================= BILL DETAIL ================= */
 .bill-detail {
+  border-radius: 30px;
   border: 1px solid var(--glass-border);
-}
-
-.bill-detail h4 {
-  margin-bottom: 10px;
-  color: var(--accent);
-}
-
-/* ================= PILLS ================= */
-.pill {
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* ================= FILTER BAR ================= */
-.bills-filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  align-items: center;
-}
-
-/* ================= ACTION BUTTONS ================= */
-.actions button {
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-/* ================= BORROWERS ================= */
-#borrowers td {
-  vertical-align: middle;
 }
 
 /* ================= MESSAGES ================= */
 .msg {
-  animation: fadeSlide 0.4s ease;
+  padding: 16px;
+  border-radius: 18px;
+  margin-top: 14px;
+  animation: pop 0.4s ease;
 }
 
-@keyframes fadeSlide {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes pop {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 /* ================= SCROLLBAR ================= */
@@ -202,32 +286,17 @@ tr:hover td {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(var(--accent), var(--accent-2));
+  background: linear-gradient(var(--primary), var(--secondary));
   border-radius: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(255,255,255,0.08);
 }
 
 /* ================= MOBILE ================= */
 @media (max-width: 768px) {
-  nav {
-    overflow-x: auto;
-    padding-bottom: 10px;
-  }
-
   .form-row {
     flex-direction: column;
-    align-items: stretch;
   }
-
   button {
     width: 100%;
-  }
-
-  table {
-    font-size: 13px;
   }
 }
 
@@ -1113,6 +1182,7 @@ loadDashboard();
 </script>
 </body>
 </html>
+
 
 
 
