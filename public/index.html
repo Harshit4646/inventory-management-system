@@ -4,319 +4,233 @@
   <meta charset="UTF-8">
   <title>Inventory Management System</title>
 <style>
-/* ================= RESET ================= */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ================= GLOBAL POLISH ================= */
+:root {
+  --accent: #00ffd5;
+  --accent-2: #4facfe;
+  --danger: #ff4b2b;
+  --warning: #ffd200;
+  --success: #00ff9d;
+  --glass-bg: rgba(255,255,255,0.10);
+  --glass-border: rgba(255,255,255,0.22);
 }
 
-/* ================= BACKGROUND ================= */
 body {
-  font-family: "Inter", "Segoe UI", Roboto, sans-serif;
-  min-height: 100vh;
-  color: #eaeaf0;
-  background:
-    radial-gradient(circle at 10% 10%, #2a3cff55, transparent 40%),
-    radial-gradient(circle at 90% 20%, #00ffd555, transparent 40%),
-    linear-gradient(135deg, #050b1e, #0b1538);
-  animation: bgMove 18s ease infinite;
-}
-
-@keyframes bgMove {
-  0% { background-position: 0% 0%, 100% 0%, 0% 0%; }
-  50% { background-position: 100% 100%, 0% 100%, 100% 100%; }
-  100% { background-position: 0% 0%, 100% 0%, 0% 0%; }
+  line-height: 1.6;
+  letter-spacing: 0.3px;
 }
 
 /* ================= HEADER ================= */
 header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  backdrop-filter: blur(16px);
-  background: rgba(255,255,255,0.08);
-  border-bottom: 1px solid rgba(255,255,255,0.15);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  background: rgba(5,11,30,0.75);
+  backdrop-filter: blur(22px);
 }
 
 nav {
-  padding: 18px 35px;
+  display: flex;
+  gap: 28px;
+  align-items: center;
 }
 
 nav a {
-  color: #fff;
-  margin-right: 26px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  text-decoration: none;
-  position: relative;
-  transition: all 0.3s ease;
+  font-size: 14px;
+  opacity: 0.85;
 }
 
-nav a::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: -6px;
-  height: 3px;
-  width: 0%;
-  background: linear-gradient(90deg, #00ffd5, #4facfe);
-  border-radius: 10px;
-  transition: width 0.35s ease;
-}
-
-nav a:hover::after,
-nav a.active::after {
-  width: 100%;
-}
-
-/* ================= MAIN ================= */
-main {
-  padding: 35px;
-}
-
-section {
-  display: none;
-  animation: sectionIn 0.6s cubic-bezier(.2,.8,.2,1);
-}
-
-section.active {
-  display: block;
-}
-
-@keyframes sectionIn {
-  from { opacity: 0; transform: translateY(18px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* ================= HEADINGS ================= */
-h2 {
-  font-size: 26px;
-  margin-bottom: 18px;
-  background: linear-gradient(90deg, #00ffd5, #4facfe);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-h3 {
-  margin-top: 30px;
-  color: #b9c6ff;
-}
-
-/* ================= DASHBOARD ================= */
-.flex {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-}
-
-.card {
-  position: relative;
-  min-width: 220px;
-  padding: 22px;
-  border-radius: 22px;
-  background: linear-gradient(
-    135deg,
-    rgba(255,255,255,0.22),
-    rgba(255,255,255,0.06)
-  );
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.25);
-  box-shadow: 0 25px 60px rgba(0,0,0,0.6);
-  transition: all 0.35s ease;
-}
-
-.card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 22px;
-  background: linear-gradient(120deg, transparent, #00ffd540, transparent);
-  opacity: 0;
-  transition: opacity 0.4s;
-}
-
-.card:hover::before {
+nav a:hover,
+nav a.active {
   opacity: 1;
 }
 
-.card:hover {
-  transform: translateY(-12px) scale(1.04);
+/* ================= SECTION SPACING ================= */
+main {
+  max-width: 1400px;
+  margin: auto;
 }
 
-/* ================= PILLS ================= */
-.pill {
-  padding: 7px 16px;
-  border-radius: 999px;
-  font-size: 12px;
+section {
+  padding: 10px 0;
+}
+
+/* ================= CARDS ================= */
+.card {
+  flex: 1;
+  min-width: 240px;
+  border-radius: 26px;
+}
+
+.card strong {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.card span {
+  font-size: 22px;
   font-weight: 800;
 }
 
-.pill.cash {
-  background: linear-gradient(90deg, #00ffd5, #00ff9d);
-  color: #003c32;
-}
-
-.pill.online {
-  background: linear-gradient(90deg, #4facfe, #00f2fe);
-  color: #002c4a;
-}
-
-.pill.borrow {
-  background: linear-gradient(90deg, #ff416c, #ffb347);
-  color: #3a0000;
+/* ================= DASHBOARD HOVER ================= */
+.card:hover {
+  box-shadow: 0 35px 80px rgba(0,0,0,0.75);
 }
 
 /* ================= FORMS ================= */
 .form-row {
-  margin-bottom: 16px;
-}
-
-label {
-  width: 160px;
-  display: inline-block;
-  font-weight: 700;
-  color: #e3e8ff;
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 input, select {
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(255,255,255,0.14);
-  border: 1px solid rgba(255,255,255,0.3);
-  color: #fff;
-  font-size: 14px;
+  flex: 1;
+  transition: all 0.25s ease;
 }
 
-input:focus, select:focus {
-  outline: none;
-  border-color: #00ffd5;
-  box-shadow: 0 0 0 3px rgba(0,255,213,0.35);
+input:hover, select:hover {
+  background: rgba(255,255,255,0.18);
+}
+
+input::placeholder {
+  color: rgba(255,255,255,0.55);
 }
 
 /* ================= BUTTONS ================= */
 button {
-  padding: 10px 18px;
-  border-radius: 14px;
-  font-weight: 800;
-  cursor: pointer;
-  border: none;
-  transition: all 0.3s ease;
+  letter-spacing: 0.4px;
 }
 
-button:hover {
-  transform: translateY(-3px) scale(1.08);
+button:active {
+  transform: scale(0.96);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: #fff;
+  box-shadow: 0 10px 30px rgba(102,126,234,0.45);
 }
 
 .btn-success {
-  background: linear-gradient(135deg, #00c9ff, #92fe9d);
-  color: #003f2f;
+  box-shadow: 0 10px 30px rgba(0,255,157,0.45);
 }
 
 .btn-danger {
-  background: linear-gradient(135deg, #ff416c, #ff4b2b);
+  box-shadow: 0 10px 30px rgba(255,65,108,0.45);
 }
 
 .btn-warning {
-  background: linear-gradient(135deg, #f7971e, #ffd200);
-  color: #3b2500;
+  box-shadow: 0 10px 30px rgba(247,151,30,0.45);
 }
 
 .btn-secondary {
-  background: linear-gradient(135deg, #485563, #29323c);
+  box-shadow: 0 10px 30px rgba(72,85,99,0.45);
 }
 
 /* ================= TABLE ================= */
 table {
-  width: 100%;
-  margin-top: 18px;
-  border-collapse: collapse;
-  background: rgba(255,255,255,0.1);
-  backdrop-filter: blur(16px);
-  border-radius: 18px;
-  overflow: hidden;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+  margin-top: 24px;
 }
 
 th {
-  background: rgba(255,255,255,0.2);
-  padding: 14px;
-  font-size: 14px;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.6px;
 }
 
 td {
-  padding: 13px;
-  border-top: 1px solid rgba(255,255,255,0.18);
-}
-
-tr {
-  transition: all 0.25s ease;
+  font-size: 14px;
 }
 
 tr:hover td {
-  background: rgba(0,255,213,0.12);
+  background: rgba(79,172,254,0.12);
 }
 
-/* ================= STATUS ================= */
-.near-expiry { background: rgba(255,193,7,0.3) !important; }
-.expired { background: rgba(255,0,0,0.3) !important; }
+/* ================= STATUS ROWS ================= */
+.near-expiry {
+  background: rgba(255,193,7,0.22) !important;
+}
+
+.expired {
+  background: rgba(255,65,108,0.22) !important;
+}
+
+/* ================= BILL DETAIL ================= */
+.bill-detail {
+  border: 1px solid var(--glass-border);
+}
+
+.bill-detail h4 {
+  margin-bottom: 10px;
+  color: var(--accent);
+}
+
+/* ================= PILLS ================= */
+.pill {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ================= FILTER BAR ================= */
+.bills-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+}
+
+/* ================= ACTION BUTTONS ================= */
+.actions button {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* ================= BORROWERS ================= */
+#borrowers td {
+  vertical-align: middle;
+}
 
 /* ================= MESSAGES ================= */
 .msg {
-  padding: 14px;
-  margin: 14px 0;
-  border-radius: 14px;
-  font-weight: 800;
+  animation: fadeSlide 0.4s ease;
 }
 
-.msg.success {
-  background: rgba(0,255,157,0.25);
-  color: #6dffcb;
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.msg.error {
-  background: rgba(255,65,108,0.25);
-  color: #ff9ab0;
+/* ================= SCROLLBAR ================= */
+::-webkit-scrollbar {
+  width: 10px;
 }
 
-/* ================= BILL DETAILS ================= */
-.bill-detail {
-  padding: 24px;
-  border-radius: 24px;
-  background: rgba(255,255,255,0.12);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 25px 60px rgba(0,0,0,0.65);
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--accent), var(--accent-2));
+  border-radius: 10px;
 }
 
-/* ================= TOTALS ================= */
-.bills-filter-bar,
-.bills-totals {
-  padding: 18px;
-  border-radius: 20px;
-  background: rgba(255,255,255,0.12);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 18px 45px rgba(0,0,0,0.6);
+::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.08);
 }
 
 /* ================= MOBILE ================= */
 @media (max-width: 768px) {
-  label {
-    width: 100%;
-    margin-bottom: 6px;
+  nav {
+    overflow-x: auto;
+    padding-bottom: 10px;
   }
-  input, select {
-    width: 100%;
-  }
-  .flex {
+
+  .form-row {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  button {
+    width: 100%;
+  }
+
+  table {
+    font-size: 13px;
   }
 }
+
 </style>
 
 
@@ -1199,6 +1113,7 @@ loadDashboard();
 </script>
 </body>
 </html>
+
 
 
 
