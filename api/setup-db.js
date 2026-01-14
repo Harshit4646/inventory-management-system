@@ -24,16 +24,22 @@ export default async function handler(req, res) {
     // 2️⃣ SAFE constraint fixes (PostgreSQL-compatible)
     const fixQuery = `
     DO $$
+DECLARE
+  c RECORD;
 BEGIN
   /* ---------- PRODUCTS ---------- */
-  -- Drop wrong unique on name only
-  IF EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'unique_product_name'
-  ) THEN
-    ALTER TABLE products DROP CONSTRAINT unique_product_name;
-  END IF;
+  -- Drop any wrong unique constraint on products except the correct one
+  FOR c IN
+    SELECT conname
+    FROM pg_constraint
+    WHERE conrelid = 'products'::regclass
+      AND contype = 'u'
+      AND conname <> 'unique_product_full'
+  LOOP
+    EXECUTE format('ALTER TABLE products DROP CONSTRAINT %I', c.conname);
+  END LOOP;
 
-  -- Add correct composite unique
+  -- Add correct composite unique if missing
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'unique_product_full'
   ) THEN
@@ -44,12 +50,16 @@ BEGIN
 
 
   /* ---------- SALE ITEMS ---------- */
-  -- Drop broken unique constraint
-  IF EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'unique_sale_product'
-  ) THEN
-    ALTER TABLE sale_items DROP CONSTRAINT unique_sale_product;
-  END IF;
+  -- Drop ALL wrong unique constraints
+  FOR c IN
+    SELECT conname
+    FROM pg_constraint
+    WHERE conrelid = 'sale_items'::regclass
+      AND contype = 'u'
+      AND conname <> 'unique_sale_product_pair'
+  LOOP
+    EXECUTE format('ALTER TABLE sale_items DROP CONSTRAINT %I', c.conname);
+  END LOOP;
 
   -- Add correct composite unique
   IF NOT EXISTS (
@@ -62,12 +72,16 @@ BEGIN
 
 
   /* ---------- EXPIRED STOCK ---------- */
-  -- Drop broken unique constraint
-  IF EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'unique_expired_product_date'
-  ) THEN
-    ALTER TABLE expired_stock DROP CONSTRAINT unique_expired_product_date;
-  END IF;
+  -- Drop wrong unique constraints
+  FOR c IN
+    SELECT conname
+    FROM pg_constraint
+    WHERE conrelid = 'expired_stock'::regclass
+      AND contype = 'u'
+      AND conname <> 'unique_expired_pair'
+  LOOP
+    EXECUTE format('ALTER TABLE expired_stock DROP CONSTRAINT %I', c.conname);
+  END LOOP;
 
   -- Add correct composite unique
   IF NOT EXISTS (
