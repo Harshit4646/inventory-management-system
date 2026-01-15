@@ -300,6 +300,57 @@ tr:hover td {
   }
 }
 
+/* ================= SELECT & OPTION FIX ================= */
+select {
+  color: #ffffff;
+  background-color: rgba(255,255,255,0.18);
+}
+
+/* Dropdown list */
+select option {
+  background-color: #0b1c3d;   /* matches --bg2 */
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* Hovered option (Chrome/Edge) */
+select option:hover {
+  background-color: rgba(0,255,213,0.25);
+}
+
+/* Selected option */
+select option:checked {
+  background-color: rgba(0,255,213,0.35);
+  color: #ffffff;
+}
+
+input[type="date"] {
+  color: #ffffff;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+input[type="date"] {
+  background: rgba(255,255,255,0.18);
+  border-radius: 18px;
+  padding: 14px 16px;
+  transition: 0.3s;
+}
+
+input[type="date"]:focus {
+  box-shadow: 0 0 0 3px var(--primary);
+  background: rgba(255,255,255,0.22);
+}
+input[type="date"]:not(:valid) {
+  color: rgba(255,255,255,0.6);
+}
+
 </style>
 
 
@@ -1182,6 +1233,7 @@ loadDashboard();
 </script>
 </body>
 </html>
+
 
 
 
